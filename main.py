@@ -5,18 +5,53 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import BOT_TOKEN, GEMINI_API_KEY
 
 # --- SOZLAMALAR ---
-# Konsolga botning ishlashi haqida ma'lumot chiqarish uchun sozlash
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Gemini modelini sozlash
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
+# --- TILLAR UCHUN LUG'AT ---
+texts = {
+    'uz': {
+        'welcome': "Assalomu alaykum! Tilni tanlang.",
+        'ask_name': "To'liq ism-familiyangizni kiriting:",
+        'ask_experience': "Rahmat! Endi tajribangiz haqida yozing (masalan, '2 yil SMM sohasida').",
+        'ask_portfolio': "Ajoyib! Endi portfoliongizni yuboring (fayl yoki havolasini).",
+        'analyzing': "Ma'lumotlar qabul qilindi. Hozir sun'iy intellekt yordamida tahlil qilinmoqda, bir oz kuting...",
+        'summary_title': "**Sun'iy intellekt xulosasi:**\n\n",
+        'goodbye': "\n\nRahmat! Tez orada siz bilan bog'lanamiz. ✅",
+        'gemini_prompt': """Sen tajribali HR-menejersan. Quyidagi nomzodning ma'lumotlarini tahlil qilib, u haqida o'zbek tilida qisqacha va aniq xulosa yoz.
+        Nomzod ma'lumotlari:
+        - Ism: {name}
+        - Tajribasi: {experience}
+        Xulosa quyidagi formatda bo'lsin:
+        Xulosa: [Nomzodning tajribasi va so'zlari asosida 2-3 gaplik xulosa]
+        Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]"""
+    },
+    'ru': {
+        'welcome': "Здравствуйте! Выберите язык.",
+        'ask_name': "Введите ваше полное имя и фамилию:",
+        'ask_experience': "Спасибо! Теперь опишите ваш опыт (например, '2 года в сфере SMM').",
+        'ask_portfolio': "Отлично! Теперь отправьте ваше портфолио (файлом или ссылкой).",
+        'analyzing': "Данные получены. Сейчас они анализируются с помощью искусственного интеллекта, подождите немного...",
+        'summary_title': "**Заключение искусственного интеллекта:**\n\n",
+        'goodbye': "\n\nСпасибо! Мы скоро с вами свяжемся. ✅",
+        'gemini_prompt': """Ты опытный HR-менеджер. Проанализируй данные кандидата и напиши краткое и четкое заключение о нём на русском языке.
+        Данные кандидата:
+        - Имя: {name}
+        - Опыт: {experience}
+        Заключение должно быть в следующем формате:
+        Заключение: [Заключение из 2-3 предложений на основе опыта и слов кандидата]
+        Предварительная оценка: [Подходит / Стоит рассмотреть / Недостаточно опыта]"""
+    }
+}
+
 # --- BOTNING XOTIRASI (FSM) ---
 class Form(StatesGroup):
+    language_selection = State()
     name = State()
     experience = State()
     portfolio = State()
@@ -25,56 +60,69 @@ class Form(StatesGroup):
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Gemini bilan tahlil qiluvchi funksiya
-async def analyze_with_gemini(data: dict):
-    prompt = f"""
-    Sen tajribali HR-menejersan. Quyidagi nomzodning ma'lumotlarini tahlil qilib, u haqida qisqacha va aniq xulosa yoz.
-
-    Nomzod ma'lumotlari:
-    - Ism: {data.get('name')}
-    - Tajribasi: {data.get('experience')}
-
-    Xulosa quyidagi formatda bo'lsin:
-    Xulosa: [Nomzodning tajribasi va so'zlari asosida 2-3 gaplik xulosa]
-    Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
-    """
-    try:
-        response = await model.generate_content_async(prompt)
-        return response.text
-    except Exception as e:
-        logging.error(f"Gemini API xatosi: {e}")
-        return "Sun'iy intellekt bilan tahlil qilishda xatolik yuz berdi."
+# Til tanlash uchun tugmalar
+language_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
+    [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")]
+])
 
 # --- BOT SUHBATLOGIKASI ---
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message, state: FSMContext):
-    await message.reply("Assalomu alaykum! Nomzod anketasini to'ldirishni boshlaymiz.\n\nTo'liq ism-familiyangizni kiriting:")
+    await message.reply(f"{texts['uz']['welcome']}\n{texts['ru']['welcome']}", reply_markup=language_keyboard)
+    await state.set_state(Form.language_selection)
+
+# Til tanlash tugmasi bosilganda ishlaydigan handler
+@dp.callback_query(Form.language_selection, F.data.startswith('lang_'))
+async def process_language_selection(callback: types.CallbackQuery, state: FSMContext):
+    lang = callback.data.split('_')[1]  # 'uz' yoki 'ru'
+    await state.update_data(language=lang)
+    
+    await callback.message.edit_reply_markup() # Tugmalarni o'chirish
+    await callback.message.answer(texts[lang]['ask_name'])
     await state.set_state(Form.name)
+    await callback.answer()
+
+async def get_user_lang(state: FSMContext):
+    user_data = await state.get_data()
+    return user_data.get('language', 'uz') # Agar til topilmasa, standart 'uz'
 
 @dp.message(Form.name)
 async def process_name(message: types.Message, state: FSMContext):
+    lang = await get_user_lang(state)
     await state.update_data(name=message.text)
-    await message.answer("Rahmat! Endi tajribangiz haqida yozing (masalan, '2 yil SMM sohasida').")
+    await message.answer(texts[lang]['ask_experience'])
     await state.set_state(Form.experience)
 
 @dp.message(Form.experience)
 async def process_experience(message: types.Message, state: FSMContext):
+    lang = await get_user_lang(state)
     await state.update_data(experience=message.text)
-    await message.answer("Ajoyib! Endi portfoliongizni yuboring (fayl yoki havolasini).")
+    await message.answer(texts[lang]['ask_portfolio'])
     await state.set_state(Form.portfolio)
 
 @dp.message(Form.portfolio)
 async def process_portfolio(message: types.Message, state: FSMContext):
-    await message.answer("Ma'lumotlar qabul qilindi. Hozir sun'iy intellekt yordamida tahlil qilinmoqda, bir oz kuting...")
+    lang = await get_user_lang(state)
+    await message.answer(texts[lang]['analyzing'])
     
     user_data = await state.get_data()
     
-    # === GEMINI'NI ISHGA SOLAMIZ! ===
-    gemini_summary = await analyze_with_gemini(user_data)
+    # Gemini'ga yuboriladigan promptni tanlangan tilga moslash
+    prompt = texts[lang]['gemini_prompt'].format(
+        name=user_data.get('name'),
+        experience=user_data.get('experience')
+    )
     
-    # Natijani terminalga va foydalanuvchiga ko'rsatamiz
-    logging.info(f"--- GEMINI XULOSASI ---\n{gemini_summary}\n-----------------------")
-    await message.answer(f"**Sun'iy intellekt xulosasi:**\n\n{gemini_summary}\n\nRahmat! Tez orada siz bilan bog'lanamiz. ✅")
+    try:
+        response = await model.generate_content_async(prompt)
+        gemini_summary = response.text
+    except Exception as e:
+        logging.error(f"Gemini API xatosi: {e}")
+        gemini_summary = "Sun'iy intellekt bilan tahlil qilishda xatolik yuz berdi."
+    
+    logging.info(f"--- GEMINI XULOSASI ({lang.upper()}) ---\n{gemini_summary}\n-----------------------")
+    await message.answer(f"{texts[lang]['summary_title']}{gemini_summary}{texts[lang]['goodbye']}")
     
     await state.clear()
 
