@@ -7,7 +7,19 @@ from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from config import BOT_TOKEN, GEMINI_API_KEY
+# main.py faylining boshidagi import qismini o'zgartiring
+import os
+from dotenv import load_dotenv
+
+load_dotenv() # .env faylidagi o'zgaruvchilarni yuklaydi
+
+# ... boshqa importlar (aiogram, genai, va hokazo)
+
+# --- SOZLAMALAR ---
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Qolgan kodlar o'zgarishsiz qoladi...
 
 # --- SOZLAMALAR ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
