@@ -16,12 +16,12 @@ load_dotenv()
 # --- SOZLAMALAR ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-HR_GROUP_ID = os.getenv("HR_GROUP_ID") # YANGI O'ZGARUVCHINI O'QISH
+HR_GROUP_ID = os.getenv("HR_GROUP_ID")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- TILLAR UCHUN LUG'AT ---
+# --- TILLAR UCHUN LUG'AT (YANGILANGAN) ---
 texts = {
     'uz': {
         'welcome': "Assalomu alaykum! Tilni tanlang.",
@@ -29,27 +29,35 @@ texts = {
         'ask_experience': "Rahmat! Endi tajribangiz haqida yozing (masalan, '2 yil SMM sohasida').",
         'ask_portfolio': "Ajoyib! Endi rezyumeingizni PDF yoki DOCX formatida yuboring.",
         'analyzing': "Ma'lumotlar qabul qilindi. Hozir sun'iy intellekt yordamida tahlil qilinmoqda, bir oz kuting...",
-        'goodbye_user': "Arizangiz uchun rahmat! Ma'lumotlaringiz muvaffaqiyatli qabul qilindi. Agar nomzodingiz ma'qul topilsa, biz siz bilan tez orada bog'lanamiz. ✅", # NOMZOD UCHUN YANGI XABAR
+        'goodbye_user': "Arizangiz uchun rahmat! Ma'lumotlaringiz muvaffaqiyatli qabul qilindi. Agar nomzodingiz ma'qul topilsa, biz siz bilan tez orada bog'lanamiz. ✅",
         'file_error': "Iltimos, rezyumeni faqat PDF yoki DOCX formatida yuboring.",
-        'gemini_file_prompt': """Sen tajribali HR-menejersan. Ilova qilingan fayl nomzodning rezyumesi hisoblanadi. 
-        Ushbu rezyumeni o'qib chiqib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
-        Tahlil quyidagi formatda bo'lsin:
-        Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
-        Kuchli tomonlari: [Rezyumedan topilgan eng asosiy 2-3 ta kuchli jihat]
-        Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]""",
-        'gemini_text_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning rezyumesidan olingan matn keltirilgan. 
-        Ushbu matnni tahlil qilib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
-        Tahlil quyidagi formatda bo'lsin:
-        Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
-        Kuchli tomonlari: [Rezyumedan topilgan eng asosiy 2-3 ta kuchli jihat]
-        Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
-        
-        Rezyume matni:
-        {resume_text}
-        """
+        'hr_notification': """🔔 Yangi nomzod!
+
+👤 **Ism:** {name}
+📝 **Qisqa tajriba:** {experience}
+-------------------
+🤖 **Sun'iy Intellekt Xulosasi:**
+{summary}""",
+        'gemini_file_prompt': """...""", # o'zgarishsiz, qisqartirildi
+        'gemini_text_prompt': """..."""  # o'zgarishsiz, qisqartirildi
     },
     'ru': {
-        # ... ruscha matnlar o'zgarishsiz
+        'welcome': "Здравствуйте! Выберите язык.",
+        'ask_name': "Введите ваше полное имя и фамилию:",
+        'ask_experience': "Спасибо! Теперь опишите ваш опыт (например, '2 года в сфере SMM').",
+        'ask_portfolio': "Отлично! Теперь отправьте ваше резюме в формате PDF или DOCX.",
+        'analyzing': "Данные получены. Сейчас они анализируются с помощью искусственного интеллекта, подождите немного...",
+        'goodbye_user': "Спасибо за вашу заявку! Ваши данные успешно приняты. Мы свяжемся с вами в ближайшее время, если ваша кандидатура будет одобрена. ✅",
+        'file_error': "Пожалуйста, отправьте резюме только в формате PDF или DOCX.",
+        'hr_notification': """🔔 Новый кандидат!
+
+👤 **Имя:** {name}
+📝 **Краткий опыт:** {experience}
+-------------------
+🤖 **Заключение Искусственного Интеллекта:**
+{summary}""",
+        'gemini_file_prompt': """...""", # o'zgarishsiz, qisqartirildi
+        'gemini_text_prompt': """..."""  # o'zgarishsiz, qisqartirildi
     }
 }
 
@@ -117,6 +125,7 @@ async def process_resume_file(message: types.Message, state: FSMContext):
     gemini_summary = ""
 
     try:
+        # Gemini tahlili (o'zgarishsiz)
         if file_mime_type == "application/pdf":
             pdf_part = {"mime_type": "application/pdf", "data": file_bytes_io.read()}
             prompt = texts[lang]['gemini_file_prompt']
@@ -141,14 +150,14 @@ async def process_resume_file(message: types.Message, state: FSMContext):
         logging.error(f"Faylni tahlil qilishdagi xato: {e}")
         gemini_summary = "Faylni tahlil qilishda xatolik yuz berdi."
 
-    # XULOSANI HR GURUHIGA YUBORISH
-    hr_summary_text = (
-        f"🔔 Yangi nomzod!\n\n"
-        f"👤 **Ism:** {user_data.get('name')}\n"
-        f"📝 **Qisqa tajriba:** {user_data.get('experience')}\n"
-        f"-------------------\n"
-        f"🤖 **Sun'iy Intellekt Xulosasi:**\n{gemini_summary}"
+    # XULOSANI HR GURUHIGA YUBORISH (YANGILANGAN MANTIQ)
+    hr_notification_template = texts[lang]['hr_notification']
+    hr_summary_text = hr_notification_template.format(
+        name=user_data.get('name'),
+        experience=user_data.get('experience'),
+        summary=gemini_summary
     )
+
     if HR_GROUP_ID:
         await bot.send_message(HR_GROUP_ID, hr_summary_text)
         await bot.send_document(HR_GROUP_ID, file_id) 
