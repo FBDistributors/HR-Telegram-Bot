@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import io
-import docx # Yangi import
+import docx
 import google.generativeai as genai
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
@@ -32,25 +32,24 @@ texts = {
         'goodbye': "\n\nRahmat! Tez orada siz bilan bog'lanamiz. ✅",
         'file_error': "Iltimos, rezyumeni faqat PDF yoki DOCX formatida yuboring.",
         'gemini_file_prompt': """Sen tajribali HR-menejersan. Ilova qilingan fayl nomzodning rezyumesi hisoblanadi. 
-        Ushbu rezyumeni o'qib chiqib, nomzod haqida o'zbek tilida qisqacha va aniq xulosa yoz.
+        Ushbu rezyumeni o'qib chiqib, nomzod haqida **o'zbek tilida, lotin alifbosida** qisqacha va aniq xulosa yoz.
         Tahlil quyidagi formatda bo'lsin:
         Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
         Kuchli tomonlari: [Rezyumedan topilgan eng asosiy 2-3 ta kuchli jihat]
         Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]""",
         'gemini_text_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning rezyumesidan olingan matn keltirilgan. 
-        Ushbu matnni tahlil qilib, nomzod haqida o'zbek tilida qisqacha va aniq xulosa yoz.
+        Ushbu matnni tahlil qilib, nomzod haqida **o'zbek tilida, lotin alifbosida** qisqacha va aniq xulosa yoz.
         Tahlil quyidagi formatda bo'lsin:
         Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
         Kuchli tomonlari: [Rezyumedan topilgan eng asosiy 2-3 ta kuchli jihat]
         Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
-        
+
         Rezyume matni:
         {resume_text}
         """
     },
     'ru': {
-        # Rus tilidagi tarjimalar ham xuddi shunday yangilanishi mumkin
-        # Hozircha o'zgarishsiz qoldiramiz
+        # Rus tilidagi tarjimalar
         'welcome': "Здравствуйте! Выберите язык.",
         'ask_name': "Введите ваше полное имя и фамилию:",
         'ask_experience': "Спасибо! Теперь опишите ваш опыт (например, '2 года в сфере SMM').",
@@ -96,8 +95,6 @@ async def get_user_lang(state: FSMContext):
     return user_data.get('language', 'uz')
 
 # --- BOT SUHBATLOGIKASI ---
-# /start, til tanlash, ism, tajriba handler'lari o'zgarishsiz qoladi
-
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message, state: FSMContext):
     await message.reply(f"{texts['uz']['welcome']}\n{texts['ru']['welcome']}", reply_markup=language_keyboard)
@@ -145,21 +142,33 @@ async def process_resume_file(message: types.Message, state: FSMContext):
     gemini_summary = ""
     try:
         if file_mime_type == "application/pdf":
-            # PDF faylni to'g'ridan-to'g'ri yuborish
             pdf_part = {"mime_type": "application/pdf", "data": file_bytes_io.read()}
             prompt = texts[lang]['gemini_file_prompt']
             response = await model.generate_content_async([prompt, pdf_part])
             gemini_summary = response.text
 
         elif file_mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            # DOCX fayldan matnni ajratib olish
+            # DOCX fayldan matnni ajratib olish (JADVALLARNI HAM O'QIYDIGAN QILIB KUCHAYTIRILDI)
             document = docx.Document(file_bytes_io)
-            resume_text = "\n".join([para.text for para in document.paragraphs])
+            resume_text_parts = []
+            # Paragraflardan matnni olish
+            for para in document.paragraphs:
+                resume_text_parts.append(para.text)
+            # Jadvallardan matnni olish
+            for table in document.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        resume_text_parts.append(cell.text)
             
-            # Ajratib olingan matnni tahlilga yuborish
-            prompt = texts[lang]['gemini_text_prompt'].format(resume_text=resume_text)
-            response = await model.generate_content_async(prompt)
-            gemini_summary = response.text
+            resume_text = "\n".join(resume_text_parts)
+            
+            # Agar matn topilmasa, Gemini'ga xabar berish
+            if not resume_text.strip():
+                 gemini_summary = "DOCX faylidan matn topilmadi. Fayl bo'sh yoki tuzilishi notanish bo'lishi mumkin."
+            else:
+                prompt = texts[lang]['gemini_text_prompt'].format(resume_text=resume_text)
+                response = await model.generate_content_async(prompt)
+                gemini_summary = response.text
 
     except Exception as e:
         logging.error(f"Faylni tahlil qilishdagi xato: {e}")
