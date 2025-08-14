@@ -22,6 +22,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- TILLAR UCHUN LUG'AT (YANGILANGAN) ---
+# --- TILLAR UCHUN LUG'AT (TO'LIQ VA XATOSIZ VERSIYASI) ---
 texts = {
     'uz': {
         'welcome': "Assalomu alaykum! Tilni tanlang.",
@@ -38,8 +39,22 @@ texts = {
 -------------------
 🤖 **Sun'iy Intellekt Xulosasi:**
 {summary}""",
-        'gemini_file_prompt': """...""", # o'zgarishsiz, qisqartirildi
-        'gemini_text_prompt': """..."""  # o'zgarishsiz, qisqartirildi
+        'gemini_file_prompt': """Sen tajribali HR-menejersan. Ilova qilingan fayl nomzodning rezyumesi hisoblanadi. 
+        Ushbu rezyumeni o'qib chiqib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
+        Tahlil quyidagi formatda bo'lsin:
+        Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
+        Kuchli tomonlari: [Rezyumedan topilgan eng asosiy 2-3 ta kuchli jihat]
+        Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]""",
+        'gemini_text_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning rezyumesidan olingan matn keltirilgan. 
+        Ushbu matnni tahlil qilib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
+        Tahlil quyidagi formatda bo'lsin:
+        Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
+        Kuchli tomonlari: [Rezyumedan topilgan eng asosiy 2-3 ta kuchli jihat]
+        Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
+        
+        Rezyume matni:
+        {resume_text}
+        """
     },
     'ru': {
         'welcome': "Здравствуйте! Выберите язык.",
@@ -56,8 +71,22 @@ texts = {
 -------------------
 🤖 **Заключение Искусственного Интеллекта:**
 {summary}""",
-        'gemini_file_prompt': """...""", # o'zgarishsiz, qisqartirildi
-        'gemini_text_prompt': """..."""  # o'zgarishsiz, qisqartirildi
+        'gemini_file_prompt': """Ты опытный HR-менеджер. Приложенный PDF-файл является резюме кандидата. 
+        Прочитай это резюме и напиши краткое и четкое заключение о кандидате на русском языке.
+        Анализ должен быть в следующем формате:
+        Общее заключение: [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
+        Сильные стороны: [2-3 ключевые сильные стороны, найденные в резюме]
+        Предварительная оценка: [Подходит / Стоит рассмотреть / Недостаточно опыта]""",
+        'gemini_text_prompt': """Ты опытный HR-менеджер. Ниже приведен текст из резюме кандидата. 
+        Проанализируй этот текст и напиши краткое и четкое заключение о кандидате на русском языке.
+        Анализ должен быть в следующем формате:
+        Общее заключение: [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
+        Сильные стороны: [2-3 ключевые сильные стороны, найденные в резюме]
+        Предварительная оценка: [Подходит / Стоит рассмотреть / Недостаточно опыта]
+        
+        Текст резюме:
+        {resume_text}
+        """
     }
 }
 
