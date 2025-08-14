@@ -21,8 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- TILLAR UCHUN LUG'AT ---
-# --- TILLAR UCHUN LUG'AT (YANGI, CHIROYLI FORMAT BILAN) ---
+# --- TILLAR UCHUN LUG'AT (YAKUNIY VERSIYA) ---
 texts = {
     'uz': {
         'welcome': "Assalomu alaykum! Tilni tanlang.",
@@ -32,28 +31,28 @@ texts = {
         'analyzing': "Ma'lumotlar qabul qilindi. Hozir sun'iy intellekt yordamida tahlil qilinmoqda, bir oz kuting...",
         'goodbye_user': "Arizangiz uchun rahmat! Ma'lumotlaringiz muvaffaqiyatli qabul qilindi. Agar nomzodingiz ma'qul topilsa, biz siz bilan tez orada bog'lanamiz. ✅",
         'file_error': "Iltimos, rezyumeni faqat PDF yoki DOCX formatida yuboring.",
-        'hr_notification': """🔔 Yangi nomzod!
+        'hr_notification': """🔔 **Yangi nomzod!**
 
-👤 Ism: {name}
-📝 Qisqa tajriba: {experience}
+👤 **Ism:** {name}
+📝 **Qisqa tajriba:** {experience}
 -------------------
 {summary}""",
         'gemini_file_prompt': """Sen tajribali HR-menejersan. Ilova qilingan fayl nomzodning rezyumesi hisoblanadi. 
         Ushbu rezyumeni o'qib chiqib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
         Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan foydalan:
-        🤖 Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
-        ✨ Kuchli tomonlari:
+        🤖 **Umumiy xulosa:** [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
+        ✨ **Kuchli tomonlari:**
         ✅ [Rezyumedan topilgan birinchi kuchli jihat]
         ✅ [Rezyumedan topilgan ikkinchi kuchli jihat]
-        📊 Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]""",
+        📊 **Dastlabki baho:** [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]""",
         'gemini_text_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning rezyumesidan olingan matn keltirilgan. 
         Ushbu matnni tahlil qilib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
         Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan foydalan:
-        🤖 Umumiy xulosa: [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
-        ✨ Kuchli tomonlari:
+        🤖 **Umumiy xulosa:** [Nomzodning tajribasi, ko'nikmalari va ma'lumotlari asosida 2-3 gaplik xulosa]
+        ✨ **Kuchli tomonlari:**
         ✅ [Rezyumedan topilgan birinchi kuchli jihat]
         ✅ [Rezyumedan topilgan ikkinchi kuchli jihat]
-        📊 Dastlabki baho: [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
+        📊 **Dastlabki baho:** [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
         
         Rezyume matni:
         {resume_text}
@@ -67,28 +66,28 @@ texts = {
         'analyzing': "Данные получены. Сейчас они анализируются с помощью искусственного интеллекта, подождите немного...",
         'goodbye_user': "Спасибо за вашу заявку! Ваши данные успешно приняты. Мы свяжемся с вами в ближайшее время, если ваша кандидатура будет одобрена. ✅",
         'file_error': "Пожалуйста, отправьте резюме только в формате PDF или DOCX.",
-        'hr_notification': """🔔 Новый кандидат!
+        'hr_notification': """🔔 **Новый кандидат!**
 
-👤 Имя: {name}
-📝 Краткий опыт: {experience}
+👤 **Имя:** {name}
+📝 **Краткий опыт:** {experience}
 -------------------
 {summary}""",
         'gemini_file_prompt': """Ты опытный HR-менеджер. Приложенный PDF-файл является резюме кандидата. 
         Прочитай это резюме и напиши краткое и четкое заключение о кандидате на русском языке.
         Анализ должен быть в следующем формате, используй эмодзи для заголовков и списков:
-        🤖 Общее заключение: [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
-        ✨ Сильные стороны:
+        🤖 **Общее заключение:** [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
+        ✨ **Сильные стороны:**
         ✅ [Первая ключевая сильная сторона, найденная в резюме]
         ✅ [Вторая ключевая сильная сторона, найденная в резюме]
-        📊 Предварительная оценка: [Подходит / Стоит рассмотреть / Недостаточно опыта]""",
+        📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]""",
         'gemini_text_prompt': """Ты опытный HR-менеджер. Ниже приведен текст из резюме кандидата. 
         Проанализируй этот текст и напиши краткое и четкое заключение о кандидате на русском языке.
         Анализ должен быть в следующем формате, используй эмодзи для заголовков и списков:
-        🤖 Общее заключение: [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
-        ✨ Сильные стороны:
+        🤖 **Общее заключение:** [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
+        ✨ **Сильные стороны:**
         ✅ [Первая ключевая сильная сторона, найденная в резюме]
         ✅ [Вторая ключевая сильная сторона, найденная в резюме]
-        📊 Предварительная оценка: [Подходит / Стоит рассмотреть / Недостаточно опыта]
+        📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]
         
         Текст резюме:
         {resume_text}
@@ -107,17 +106,18 @@ class Form(StatesGroup):
 # --- ASOSIY BOT QISMI ---
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-# ... qolgan qismlar o'zgarishsiz ...
 language_keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")], [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")]])
 
 async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
     return user_data.get('language', 'uz')
 
+# --- BOT SUHBATLOGIKASI ---
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message, state: FSMContext):
     await message.reply(f"{texts['uz']['welcome']}\n{texts['ru']['welcome']}", reply_markup=language_keyboard)
     await state.set_state(Form.language_selection)
+
 @dp.callback_query(Form.language_selection, F.data.startswith('lang_'))
 async def process_language_selection(callback: types.CallbackQuery, state: FSMContext):
     lang = callback.data.split('_')[1]
@@ -126,12 +126,14 @@ async def process_language_selection(callback: types.CallbackQuery, state: FSMCo
     await callback.message.answer(texts[lang]['ask_name'])
     await state.set_state(Form.name)
     await callback.answer()
+
 @dp.message(Form.name)
 async def process_name(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
     await state.update_data(name=message.text)
     await message.answer(texts[lang]['ask_experience'])
     await state.set_state(Form.experience)
+
 @dp.message(Form.experience)
 async def process_experience(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
@@ -139,8 +141,6 @@ async def process_experience(message: types.Message, state: FSMContext):
     await message.answer(texts[lang]['ask_portfolio'])
     await state.set_state(Form.resume_file)
 
-
-# PDF YOKI DOCX FAYLLARNI QABUL QILADIGAN HANDLER (YANGILANGAN)
 @dp.message(Form.resume_file, F.document)
 async def process_resume_file(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
@@ -160,7 +160,6 @@ async def process_resume_file(message: types.Message, state: FSMContext):
     gemini_summary = ""
 
     try:
-        # Gemini tahlili (o'zgarishsiz)
         if file_mime_type == "application/pdf":
             pdf_part = {"mime_type": "application/pdf", "data": file_bytes_io.read()}
             prompt = texts[lang]['gemini_file_prompt']
@@ -185,7 +184,7 @@ async def process_resume_file(message: types.Message, state: FSMContext):
         logging.error(f"Faylni tahlil qilishdagi xato: {e}")
         gemini_summary = "Faylni tahlil qilishda xatolik yuz berdi."
 
-    # XULOSANI HR GURUHIGA YUBORISH (YANGILANGAN MANTIQ)
+    # XULOSANI HR GURUHIGA YUBORISH
     hr_notification_template = texts[lang]['hr_notification']
     hr_summary_text = hr_notification_template.format(
         name=user_data.get('name'),
@@ -194,7 +193,7 @@ async def process_resume_file(message: types.Message, state: FSMContext):
     )
 
     if HR_GROUP_ID:
-        await bot.send_message(HR_GROUP_ID, hr_summary_text)
+        await bot.send_message(HR_GROUP_ID, hr_summary_text, parse_mode="Markdown")
         await bot.send_document(HR_GROUP_ID, file_id) 
     else:
         logging.warning("HR_GROUP_ID belgilanmagan. Xulosa guruhga yuborilmadi.")
@@ -202,7 +201,6 @@ async def process_resume_file(message: types.Message, state: FSMContext):
     # NOMZODGA STANDART JAVOB YUBORISH
     await message.answer(texts[lang]['goodbye_user'])
     await state.clear()
-
 
 @dp.message(Form.resume_file)
 async def process_resume_invalid(message: types.Message, state: FSMContext):
