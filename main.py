@@ -8,7 +8,6 @@ from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from config import BOT_TOKEN, GEMINI_API_KEY
 import os
 from dotenv import load_dotenv
 
