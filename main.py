@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- TILLAR UCHUN LUG'AT (YAKUNIY VERSIYA) ---
+# --- TILLAR UCHUN LUG'AT (TO'LIQ VERSIYASI) ---
 texts = {
     'uz': {
         'welcome': "Assalomu alaykum! Tilni tanlang.",
@@ -93,17 +93,83 @@ texts = {
         📊 **Dastlabki baho:** [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]"""
     },
     'ru': {
-        # ... ruscha versiyasini ham xuddi shunday to'ldirishingiz mumkin ...
+        'welcome': "Здравствуйте! Выберите язык.",
+        'ask_name': "Введите ваше полное имя и фамилию (ФИО):",
+        'ask_has_resume': "Отлично! Чтобы продолжить, есть ли у вас резюме?",
+        'button_yes_resume': "✅ Да, отправить резюме",
+        'button_no_resume': "❌ Нет, пройти собеседование",
+        'prompt_for_resume': "Пожалуйста, отправьте ваше резюме в формате PDF или DOCX.",
+        'start_convo_application': "Ничего страшного! Давайте ответим на несколько вопросов в чате.",
+        'ask_vacancy': "На какую вакансию вы претендуете?",
+        'ask_experience': "Опишите ваш опыт работы (последнее место работы, должность, сколько лет работали).",
+        'ask_salary': "Какую заработную плату вы ожидаете? (в сумах, напишите цифрой или текстом)",
+        'ask_location': "Введите ваш адрес проживания (город, район).",
+        'ask_skills': "Опишите ваши ключевые навыки, относящиеся к вакансии (например: Excel, 1C, Python, продажи).",
+        'ask_availability': "Готовы ли вы приступить к работе в ближайшее время?",
+        'button_yes': "✅ Да",
+        'button_no': "❌ Нет",
+        'ask_contact': "Введите ваш номер телефона для связи.",
+        'goodbye_user': "Спасибо за все данные! Ваша заявка успешно принята. Мы свяжемся с вами в ближайшее время, если ваша кандидатура будет одобрена. ✅",
+        'analyzing': "Данные получены. Сейчас они анализируются с помощью искусственного интеллекта, подождите немного...",
+        'file_error': "Пожалуйста, отправьте резюме только в формате PDF или DOCX.",
+        'hr_notification_file': """🔔 **Новый кандидат (с резюме)!**
+
+👤 **ФИО:** {name}
+📄 **Резюме:** Файл прикреплен.
+-------------------
+{summary}""",
+        'hr_notification_convo': """🔔 **Новый кандидат (через чат)!**
+
+👤 **ФИО:** {name}
+👨‍💼 **Вакансия:** {vacancy}
+-------------------
+**Ответы кандидата:**
+- **Опыт:** {experience}
+- **Ожидаемая зарплата:** {salary}
+- **Адрес:** {location}
+- **Навыки:** {skills}
+- **Готовность к работе:** {availability}
+- **Контакт:** {contact}
+-------------------
+{summary}""",
+        'gemini_file_prompt': """Ты опытный HR-менеджер. Приложенный PDF-файл является резюме кандидата. 
+        Прочитай это резюме и напиши краткое и четкое заключение о кандидате на русском языке.
+        Анализ должен быть в следующем формате, используй эмодзи для заголовков и списков:
+        🤖 **Общее заключение:** [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
+        ✨ **Сильные стороны:**
+        ✅ [Первая ключевая сильная сторона, найденная в резюме]
+        ✅ [Вторая ключевая сильная сторона, найденная в резюме]
+        📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]""",
+        'gemini_text_prompt': """Ты опытный HR-менеджер. Ниже приведен текст из резюме кандидата. 
+        Проанализируй этот текст и напиши краткое и четкое заключение о кандидате на русском языке.
+        Анализ должен быть в следующем формате, используй эмодзи для заголовков и списков:
+        🤖 **Общее заключение:** [Заключение из 2-3 предложений на основе опыта, навыков и образования кандидата]
+        ✨ **Сильные стороны:**
+        ✅ [Первая ключевая сильная сторона, найденная в резюме]
+        ✅ [Вторая ключевая сильная сторона, найденная в резюме]
+        📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]
+        
+        Текст резюме:
+        {resume_text}
+        """,
+        'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата. 
+        Проанализируй эту информацию и напиши краткое и четкое заключение о кандидате на русском языке.
+        Анализ должен быть в следующем формате, используй эмодзи:
+        🤖 **Общее заключение:** [Заключение из 2-3 предложений на основе ответов кандидата и соответствия вакансии]
+        ✨ **Сильные стороны:**
+        ✅ [Первая ключевая сильная сторона, найденная в ответах]
+        ✅ [Вторая ключевая сильная сторона, найденная в ответах]
+        📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]"""
     }
 }
+
 
 # --- BOTNING XOTIRASI (FSM) YANGILANDI ---
 class Form(StatesGroup):
     language_selection = State()
     name = State()
-    has_resume_choice = State()  # Rezyume bor-yo'qligini so'rash holati
-    resume_upload = State()      # Rezyumeni kutish holati
-    # Suhbat yo'li uchun holatlar
+    has_resume_choice = State()
+    resume_upload = State()
     convo_vacancy = State()
     convo_experience = State()
     convo_salary = State()
@@ -168,8 +234,53 @@ async def process_has_resume_choice(callback: types.CallbackQuery, state: FSMCon
 @dp.message(Form.resume_upload, F.document)
 async def process_resume_file(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
-    # ... (bu qismni avvalgi ishlayotgan kodingizdan to'liq ko'chirib oling) ...
-    # ... (PDF/DOCX tahlili, Gemini'ga yuborish, xulosani guruhga yuborish)
+    file_mime_type = message.document.mime_type
+    
+    if file_mime_type not in ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        await message.reply(texts[lang]['file_error'])
+        return
+
+    await message.answer(texts[lang]['analyzing'])
+    
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_bytes_io = await bot.download_file(file_info.file_path)
+    
+    user_data = await state.get_data()
+    gemini_summary = ""
+
+    try:
+        if file_mime_type == "application/pdf":
+            pdf_part = {"mime_type": "application/pdf", "data": file_bytes_io.read()}
+            prompt = texts[lang]['gemini_file_prompt']
+            response = await model.generate_content_async([prompt, pdf_part])
+            gemini_summary = response.text
+        elif file_mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            document = docx.Document(file_bytes_io)
+            resume_text_parts = []
+            for para in document.paragraphs: resume_text_parts.append(para.text)
+            for table in document.tables:
+                for row in table.rows:
+                    for cell in row.cells: resume_text_parts.append(cell.text)
+            resume_text = "\n".join(resume_text_parts)
+            
+            if not resume_text.strip():
+                 gemini_summary = "DOCX faylidan matn topilmadi."
+            else:
+                prompt = texts[lang]['gemini_text_prompt'].format(resume_text=resume_text)
+                response = await model.generate_content_async(prompt)
+                gemini_summary = response.text
+    except Exception as e:
+        logging.error(f"Faylni tahlil qilishdagi xato: {e}")
+        gemini_summary = "Faylni tahlil qilishda xatolik yuz berdi."
+
+    hr_notification_template = texts[lang]['hr_notification_file']
+    hr_summary_text = hr_notification_template.format(name=user_data.get('name'), summary=gemini_summary)
+    
+    if HR_GROUP_ID:
+        await bot.send_message(HR_GROUP_ID, hr_summary_text, parse_mode="Markdown")
+        await bot.send_document(HR_GROUP_ID, file_id)
+    
     await message.answer(texts[lang]['goodbye_user'])
     await state.clear()
 
@@ -251,7 +362,17 @@ async def process_convo_contact(message: types.Message, state: FSMContext):
     gemini_summary = response.text
     
     hr_notification_template = texts[lang]['hr_notification_convo']
-    hr_summary_text = hr_notification_template.format(**user_data, summary=gemini_summary)
+    hr_summary_text = hr_notification_template.format(
+        name=user_data.get('name'),
+        vacancy=user_data.get('vacancy'),
+        experience=user_data.get('experience'),
+        salary=user_data.get('salary'),
+        location=user_data.get('location'),
+        skills=user_data.get('skills'),
+        availability=user_data.get('availability'),
+        contact=user_data.get('contact'),
+        summary=gemini_summary
+    )
 
     if HR_GROUP_ID:
         await bot.send_message(HR_GROUP_ID, hr_summary_text, parse_mode="Markdown")
