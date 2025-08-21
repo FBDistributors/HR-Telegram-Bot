@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- TILLAR UCHUN LUG'AT (TO'LIQ YANGILANGAN) ---
+# --- TILLAR UCHUN LUG'AT (TO'LIQ VERSIYASI) ---
 texts = {
     'uz': {
         'welcome': "Assalomu alaykum! Tilni tanlang.",
@@ -61,12 +61,45 @@ texts = {
         📊 **Dastlabki baho:** [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]"""
     },
     'ru': {
-        # ... ruscha versiyasini ham xuddi shunday to'ldirish kerak ...
+        'welcome': "Здравствуйте! Выберите язык.",
+        'ask_name': "Введите ваше полное имя и фамилию (ФИО):",
+        'ask_vacancy': "На какую вакансию вы претендуете?",
+        'ask_experience': "Опишите ваш опыт работы (последнее место работы, должность, сколько лет работали).",
+        'ask_salary': "Какую заработную плату вы ожидаете? (в сумах, напишите цифрой или текстом)",
+        'ask_location': "Введите ваш адрес проживания (город, район).",
+        'ask_skills': "Опишите ваши ключевые навыки, относящиеся к вакансии (например: Excel, 1C, Python, продажи).",
+        'ask_availability': "Готовы ли вы приступить к работе в ближайшее время?",
+        'button_yes': "✅ Да",
+        'button_no': "❌ Нет",
+        'ask_contact': "Введите ваш номер телефона для связи.",
+        'goodbye_user': "Спасибо за все данные! Ваша заявка успешно принята. Мы свяжемся с вами в ближайшее время, если ваша кандидатура будет одобрена. ✅",
+        'analyzing': "Данные получены. Сейчас они анализируются с помощью искусственного интеллекта, подождите немного...",
+        'hr_notification_convo': """🔔 **Новый кандидат (через чат)!**
+
+👤 **ФИО:** {name}
+👨‍💼 **Вакансия:** {vacancy}
+-------------------
+**Ответы кандидата:**
+- **Опыт:** {experience}
+- **Ожидаемая зарплата:** {salary}
+- **Адрес:** {location}
+- **Навыки:** {skills}
+- **Готовность к работе:** {availability}
+- **Контакт:** {contact}
+-------------------
+{summary}""",
+        'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата. 
+        Проанализируй эту информацию и напиши краткое и четкое заключение о кандидате на русском языке.
+        Анализ должен быть в следующем формате, используй эмодзи:
+        🤖 **Общее заключение:** [Заключение из 2-3 предложений на основе ответов кандидата и соответствия вакансии]
+        ✨ **Сильные стороны:**
+        ✅ [Первая ключевая сильная сторона, найденная в ответах]
+        ✅ [Вторая ключевая сильная сторона, найденная в ответах]
+        📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]"""
     }
 }
 
-
-# --- BOTNING XOTIRASI (FSM) YANGILANDI ---
+# --- BOTNING XOTIRASI (FSM) ---
 class Form(StatesGroup):
     language_selection = State()
     name = State()
@@ -86,7 +119,7 @@ async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
     return user_data.get('language', 'uz')
 
-# --- BOT SUHBATLOGIKASI (YANGILANGAN) ---
+# --- BOT SUHBATLOGIKASI ---
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message, state: FSMContext):
     await state.clear()
@@ -153,7 +186,7 @@ async def process_skills(message: types.Message, state: FSMContext):
 async def process_availability(callback: types.CallbackQuery, state: FSMContext):
     lang = await get_user_lang(state)
     choice = callback.data.split('_')[1]
-    availability_text = "Ha" if choice == "yes" else "Yo'q"
+    availability_text = texts[lang]['button_yes'] if choice == "yes" else texts[lang]['button_no']
     
     await state.update_data(availability=availability_text)
     await callback.message.delete_reply_markup()
@@ -169,7 +202,6 @@ async def process_contact(message: types.Message, state: FSMContext):
 
     user_data = await state.get_data()
     
-    # Gemini uchun barcha javoblarni bitta matnga birlashtirish
     candidate_summary_text = (
         f"Vakansiya: {user_data.get('vacancy')}\n"
         f"Tajribasi: {user_data.get('experience')}\n"
@@ -180,8 +212,10 @@ async def process_contact(message: types.Message, state: FSMContext):
         f"Aloqa: {user_data.get('contact')}"
     )
     
-    prompt = texts[lang]['gemini_convo_prompt'].format(resume_text=candidate_summary_text)
-    response = await model.generate_content_async(prompt)
+    prompt = texts[lang]['gemini_convo_prompt']
+    full_prompt = f"{prompt}\n\nNomzod javoblari:\n{candidate_summary_text}"
+    
+    response = await model.generate_content_async(full_prompt)
     gemini_summary = response.text
     
     hr_notification_template = texts[lang]['hr_notification_convo']
@@ -204,7 +238,9 @@ async def process_contact(message: types.Message, state: FSMContext):
     await state.clear()
 
 async def main():
-    # ... (o'zgarishsiz) ...
+    if not BOT_TOKEN or not GEMINI_API_KEY:
+        logging.critical("Bot tokeni yoki Gemini API kaliti topilmadi!")
+        return
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
