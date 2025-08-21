@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 import os
 from dotenv import load_dotenv
 
@@ -31,7 +31,7 @@ texts = {
         'button_no_resume': "❌ Yo'q, suhbatdan o'tish",
         'prompt_for_resume': "Marhamat, rezyumeni PDF yoki DOCX formatida yuboring.",
         'start_convo_application': "Hechqisi yo'q! Keling, o'rniga bir nechta savollar orqali siz haqingizda ma'lumot olamiz.",
-        'ask_vacancy': "Murojaat qilayotgan vakansiya nomini kiriting (masalan, "Buxgalter").",
+        'ask_vacancy': "Murojaat qilayotgan vakansiya nomini kiriting (masalan, Buxgalter).",
         'ask_experience': "Ish tajribangiz haqida yozing (oxirgi ish joyingiz, lavozimingiz, necha yil ishlaganingiz).",
         'ask_salary': "Oylik maosh bo'yicha kutilmalaringizni kiriting (so'mda, raqam yoki matn bilan yozing)",
         'ask_location': "Yashash manzilingizni kiriting (shahar, tuman).",
@@ -39,7 +39,8 @@ texts = {
         'ask_availability': "Yaqin kunlarda ish boshlashga tayyormisiz?",
         'button_yes': "✅ Ha",
         'button_no': "❌ Yo'q",
-        'ask_contact': "Siz bilan bog'lanish uchun telefon raqamingizni kiriting.",
+        'ask_contact': "Siz bilan bog'lanish uchun, quyidagi tugma orqali telefon raqamingizni yuboring:",
+        'button_share_contact': "📱 Kontaktimni ulashish",
         'goodbye_user': "Barcha ma'lumotlaringiz uchun rahmat! Arizangiz muvaffaqiyatli qabul qilindi. Nomzodingiz ma'qul topilsa, biz siz bilan tez orada bog'lanamiz. ✅",
         'analyzing': "Ma'lumotlar qabul qilindi. Hozir sun'iy intellekt yordamida tahlil qilinmoqda, bir oz kuting...",
         'file_error': "Iltimos, rezyumeni faqat PDF yoki DOCX formatida yuboring.",
@@ -108,7 +109,8 @@ texts = {
         'ask_availability': "Готовы ли вы приступить к работе в ближайшее время?",
         'button_yes': "✅ Да",
         'button_no': "❌ Нет",
-        'ask_contact': "Введите ваш номер телефона для связи.",
+        'ask_contact': "Для связи, пожалуйста, отправьте ваш номер телефона с помощью кнопки ниже:",
+        'button_share_contact': "📱 Поделиться моим контактом",
         'goodbye_user': "Спасибо за все данные! Ваша заявка успешно принята. Мы свяжемся с вами в ближайшее время, если ваша кандидатура будет одобрена. ✅",
         'analyzing': "Данные получены. Сейчас они анализируются с помощью искусственного интеллекта, подождите немного...",
         'file_error': "Пожалуйста, отправьте резюме только в формате PDF или DOCX.",
@@ -333,17 +335,33 @@ async def process_convo_availability(callback: types.CallbackQuery, state: FSMCo
     
     await state.update_data(availability=availability_text)
     await callback.message.delete_reply_markup()
-    await callback.message.answer(texts[lang]['ask_contact'])
+    
+    # Maxsus klaviatura yaratish
+    contact_keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    
+    await callback.message.answer(texts[lang]['ask_contact'], reply_markup=contact_keyboard)
     await state.set_state(Form.convo_contact)
     await callback.answer()
 
-@dp.message(Form.convo_contact)
+# KONTAKTNI QABUL QILADIGAN funksiya
+@dp.message(Form.convo_contact, F.contact)
 async def process_convo_contact(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
-    await state.update_data(contact=message.text)
+    contact_number = message.contact.phone_number
+    await state.update_data(contact=contact_number)
+    
+    # Maxsus klaviaturani olib tashlash
+    await message.answer(f"Raqamingiz qabul qilindi: {contact_number}", reply_markup=ReplyKeyboardRemove())
+    
     await message.answer(texts[lang]['analyzing'])
 
     user_data = await state.get_data()
+    
+    # ... (Bu yerdagi Gemini tahlili va HR guruhiga yuborish logikasi o'zgarishsiz qoladi) ...
     
     candidate_summary_text = (
         f"Vakansiya: {user_data.get('vacancy')}\n"
@@ -362,17 +380,7 @@ async def process_convo_contact(message: types.Message, state: FSMContext):
     gemini_summary = response.text
     
     hr_notification_template = texts[lang]['hr_notification_convo']
-    hr_summary_text = hr_notification_template.format(
-        name=user_data.get('name'),
-        vacancy=user_data.get('vacancy'),
-        experience=user_data.get('experience'),
-        salary=user_data.get('salary'),
-        location=user_data.get('location'),
-        skills=user_data.get('skills'),
-        availability=user_data.get('availability'),
-        contact=user_data.get('contact'),
-        summary=gemini_summary
-    )
+    hr_summary_text = hr_notification_template.format(**user_data, summary=gemini_summary)
 
     if HR_GROUP_ID:
         await bot.send_message(HR_GROUP_ID, hr_summary_text, parse_mode="Markdown")
