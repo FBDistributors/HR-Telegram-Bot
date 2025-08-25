@@ -1,83 +1,34 @@
-# main.py fayli (Yakuniy Boshqaruv Markazi)
+# main.py fayli (Тилни сақлайдиган якуний версия)
 
 import asyncio
 import logging
 import os
 from dotenv import load_dotenv
 
-# .env faylini yuklash
 load_dotenv()
 
-# --- DIAGNOSTIKA QISMINI IZOHGA OLAMIZ (ENDI KERAK EMAS) ---
-# print("--- .env faylini tekshirish ---")
-# api_key = os.getenv("GEMINI_API_KEY")
-# bot_token_check = os.getenv("BOT_TOKEN")
-# print(f"O'qilgan GEMINI_API_KEY: {api_key}")
-# print(f"O'qilgan BOT_TOKEN: {bot_token_check}")
-# print("-----------------------------")
-# --- DIAGNOSTIKA TUGADI ---
-
-
 from aiogram import Bot, Dispatcher, F
-from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    Message,
-    CallbackQuery,
-    ReplyKeyboardMarkup,
-    ReplyKeyboardRemove,
+    InlineKeyboardButton, InlineKeyboardMarkup, Message,
+    CallbackQuery, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
 )
 
-# Boshqa fayllardagi router'lar va FSM'larni import qilish
-from savol_javob import router as faq_router, FaqForm
-from ariza_topshirish import router as application_router, AppForm
+# Boshqa modullarni import qilish
+from savol_javob import router as faq_router
+from ariza_topshirish import router as application_router
+from admin_panel import router as admin_router
+import database as db
+from keyboards import texts, get_user_keyboard, get_admin_keyboard
+from states import MainForm, FaqForm, AppForm, AdminForm
 
-
-# --- SOZLAMALAR ---
+# SOZLAMALAR
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = os.getenv("ADMIN_ID")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- TILLAR UCHUN LUG'AT (FAQAT ASOSIY MENYU UCHUN) ---
-texts = {
-    'uz': {
-        'welcome_lang': "Assalomu alaykum! Muloqot uchun qulay tilni tanlang.",
-        'welcome_menu': "Kerakli bo'limni tanlang:",
-        'main_menu_button': "🏠 Bosh menyu",
-        'main_menu_info': "Suhbatni istalgan paytda boshidan boshlash uchun 'Bosh menyu' tugmasidan foydalaning.",
-        'main_menu_apply': "📝 Ariza topshirish",
-        'main_menu_faq': "❓ Savol berish (FAQ)",
-        'hide_menu_text': "Doimiy tugmalar yopildi. Qaytadan chiqarish uchun /start buyrug'ini bering.",
-        'button_share_contact': "📱 Kontaktimni ulashish",
-        'faq_auth_prompt': "Bu bo'lim faqat kompaniya xodimlari uchun. Iltimos, shaxsingizni tasdiqlash uchun kontaktingizni yuboring.",
-        # --- MUHIM TUZATISH: 'ask_name' MATNINI SHU YERGA QO'SHAMIZ ---
-        'ask_name': "To'liq ism-sharifingizni kiriting (masalan, Olimov Salim).",
-    },
-    'ru': {
-        'welcome_lang': "Здравствуйте! Пожалуйста, выберите удобный язык для общения.",
-        'welcome_menu': "Пожалуйста, выберите нужный раздел:",
-        'main_menu_button': "🏠 Главное меню",
-        'main_menu_info': "Используйте кнопку 'Главное меню', чтобы начать разговор заново в любой момент.",
-        'main_menu_apply': "📝 Подать заявку",
-        'main_menu_faq': "❓ Задать вопрос (FAQ)",
-        'hide_menu_text': "Постоянные кнопки скрыты. Чтобы показать их снова, отправьте команду /start.",
-        'button_share_contact': "📱 Поделиться моим контактом",
-        'faq_auth_prompt': "Этот раздел предназначен только для сотрудников компании. Пожалуйста, отправьте свой контакт для подтверждения личности.",
-        # --- MUHIM TUZATISH: 'ask_name' MATNINI RUSCHA VARIANTIGA HAM QO'SHAMIZ ---
-        'ask_name': "Введите Ваши полные имя и фамилию (например, Салимов Олим).",
-    }
-}
-
-# --- BOTNING ASOSIY HOLATLARI (FSM) ---
-class Form(StatesGroup):
-    language_selection = State()
-    main_menu = State()
-
-# --- ASOSIY BOT QISMI ---
+# ASOSIY BOT QISMI
 if not BOT_TOKEN:
     logging.critical("Bot tokeni topilmadi! Dastur to'xtatildi.")
     exit()
@@ -89,76 +40,79 @@ async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
     return user_data.get('language', 'uz')
 
-# --- ASOSIY BOT HANDLER'LARI ---
+# ASOSIY HANDLER'LAR
+
 @dp.message(CommandStart())
-async def send_welcome(message: Message, state: FSMContext):
+async def start_command(message: Message, state: FSMContext):
     await state.clear()
+    db.add_user(
+        user_id=message.from_user.id,
+        full_name=message.from_user.full_name,
+        username=message.from_user.username
+    )
     language_keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
         [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")]
     ])
-    await message.reply(texts['uz']['welcome_lang'] + "\n\n" + texts['ru']['welcome_lang'], reply_markup=language_keyboard)
-    await state.set_state(Form.language_selection)
+    await message.answer(
+        texts['uz']['welcome_lang'] + "\n\n" + texts['ru']['welcome_lang'],
+        reply_markup=language_keyboard
+    )
+    await state.set_state(MainForm.language_selection)
 
-@dp.message(F.text.in_([texts['uz']['main_menu_button'], texts['ru']['main_menu_button']]))
-async def handle_main_menu_button(message: Message, state: FSMContext):
-    await send_welcome(message, state)
 
-@dp.callback_query(Form.language_selection, F.data.startswith('lang_'))
+@dp.callback_query(MainForm.language_selection, F.data.startswith('lang_'))
 async def process_language_selection(callback: CallbackQuery, state: FSMContext):
     lang = callback.data.split('_')[1]
     await state.update_data(language=lang)
-    
     await callback.message.delete()
+
+    user_id = str(callback.from_user.id)
     
-    main_menu_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=texts[lang]['main_menu_apply'], callback_data="menu_apply")],
-        [InlineKeyboardButton(text=texts[lang]['main_menu_faq'], callback_data="menu_faq")]
-    ])
+    if user_id == ADMIN_ID:
+        keyboard = get_admin_keyboard(lang)
+    else:
+        keyboard = get_user_keyboard(lang)
     
-    persistent_keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=texts[lang]['main_menu_button'])]],
-        resize_keyboard=True
+    await callback.message.answer(texts[lang]['welcome_menu'], reply_markup=keyboard)
+    
+    await state.set_state(MainForm.main_menu)
+    await callback.answer()
+
+
+@dp.message(F.text.in_([texts['uz']['apply_button'], texts['ru']['apply_button']]))
+async def handle_apply_button(message: Message, state: FSMContext):
+    lang = await get_user_lang(state)
+    # --- МУҲИМ ТУЗАТИШ: state.clear() олиб ташланди ---
+    # Энди ҳолат тўғридан-тўғри ўзгартирилади ва тил маълумоти сақланиб қолади
+    await message.answer(texts[lang]['ask_name'])
+    await state.set_state(AppForm.name)
+
+
+@dp.message(F.text.in_([texts['uz']['faq_button'], texts['ru']['faq_button']]))
+async def handle_faq_button(message: Message, state: FSMContext):
+    lang = await get_user_lang(state)
+    contact_keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
+        resize_keyboard=True, one_time_keyboard=True
     )
-    await callback.message.answer(texts[lang]['welcome_menu'], reply_markup=main_menu_keyboard)
-    await callback.message.answer(texts[lang]['main_menu_info'], reply_markup=persistent_keyboard)
-    
-    await state.set_state(Form.main_menu)
-    await callback.answer()
+    await message.answer(texts[lang]['faq_auth_prompt'], reply_markup=contact_keyboard)
+    await state.set_state(FaqForm.verification)
 
-@dp.callback_query(Form.main_menu, F.data.startswith('menu_'))
-async def process_main_menu_choice(callback: CallbackQuery, state: FSMContext):
-    choice = callback.data.split('_')[1]
-    lang = await get_user_lang(state)
-    
-    try:
-        await callback.message.delete_reply_markup()
-    except TelegramBadRequest:
-        logging.info("Xabarni o'zgartirib bo'lmadi.")
 
-    if choice == "apply":
-        # Endi bu qator xatosiz ishlaydi, chunki 'ask_name' shu faylda mavjud
-        await callback.message.answer(texts[lang]['ask_name'])
-        await state.set_state(AppForm.name) 
-    elif choice == "faq":
-        contact_keyboard = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
-            resize_keyboard=True, one_time_keyboard=True
-        )
-        await callback.message.answer(texts[lang]['faq_auth_prompt'], reply_markup=contact_keyboard)
-        await state.set_state(FaqForm.verification)
-    
-    await callback.answer()
+@dp.message(F.text.in_([texts['uz']['broadcast_button'], texts['ru']['broadcast_button']]))
+async def handle_broadcast_button(message: Message, state: FSMContext):
+    if str(message.from_user.id) == ADMIN_ID:
+        lang = await get_user_lang(state)
+        await message.answer(texts[lang]['ask_announcement'], reply_markup=ReplyKeyboardRemove())
+        await state.set_state(AdminForm.waiting_for_announcement)
 
-@dp.message(Command("hidemenu"))
-async def hide_menu(message: Message, state: FSMContext):
-    lang = await get_user_lang(state)
-    await message.answer(texts[lang]['hide_menu_text'], reply_markup=ReplyKeyboardRemove())
 
 async def main():
+    db.init_db()
+    dp.include_router(admin_router)
     dp.include_router(application_router)
     dp.include_router(faq_router)
-    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
