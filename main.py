@@ -22,6 +22,7 @@ from admin_panel import router as admin_router
 import database as db
 from keyboards import texts, get_user_keyboard, get_admin_keyboard
 from states import MainForm, FaqForm, AppForm, AdminForm
+from scheduler import check_unanswered_questions
 
 # SOZLAMALAR
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -113,6 +114,7 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(application_router)
     dp.include_router(faq_router)
+    asyncio.create_task(check_unanswered_questions(bot))
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

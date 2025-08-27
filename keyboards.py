@@ -39,7 +39,11 @@ texts = {
         # --- ADMIN MATNLARI ---
         'ask_announcement': "📢 Marhamat, barcha foydalanuvchilarga yuboriladigan e'lon matnini kiriting:",
         'broadcast_started': "E'lon qabul qilindi. Tarqatish boshlandi...",
+        'faq_answer_found_notification': "Assalomu alaykum, {full_name}!\n\nSiz avvalroq so'ragan savolingizga javob topildi:\n\n❓ **Sizning savolingiz:** {question}\n\n🤖 **Javob:** {answer}",
+        'faq_no_answer_user': "Kechirasiz, bu savolingizga javob topa olmadim. Savolingiz mutaxassislarga yuborildi, tez orada javob berishga harakat qilamiz.",
+        'faq_no_answer_hr_notification': "🔔 **Yangi javobsiz savol!**\n\n👤 **Kimdan:** {full_name}\n❓ **Savol:** {question}",
         'broadcast_report': "✅ E'lon muvaffaqiyatli yuborildi: {success_count} ta\n❌ Yuborib bo'lmadi: {fail_count} ta",
+        'faq_no_answer_ai': "Kechirasiz, bu savolingizga javob topa olmadim.",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning suhbat orqali bergan javoblari keltirilgan.
@@ -50,6 +54,7 @@ Tahlil quyidagi formatda bo'lsin, emoji'lardan foydalan:
 ✅ [Suhbatdan topilgan birinchi kuchli jihat]
 ✅ [Suhbatdan topilgan ikkinchi kuchli jihat]
 📊 **Dastlabki baho:** [Mos keladi / O'ylab ko'rish kerak / Tajribasi kam]
+    
 
 Nomzod javoblari:
 {candidate_summary}""",
@@ -96,7 +101,11 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
 
         'ask_announcement': "📢 Пожалуйста, введите текст объявления для отправки всем пользователям:",
         'broadcast_started': "Объявление принято. Начинаю рассылку...",
+        'faq_answer_found_notification': "Здравствуйте, {full_name}!\n\nНайден ответ на ваш предыдущий вопрос:\n\n❓ **Ваш вопрос:** {question}\n\n🤖 **Ответ:** {answer}",
+        'faq_no_answer_user': "Извините, я не смог найти ответ на ваш вопрос. Ваш вопрос был направлен специалистам, мы постараемся ответить в ближайшее время.",
+        'faq_no_answer_hr_notification': "🔔 **Новый вопрос без ответа!**\n\n👤 **От кого:** {full_name}\n❓ **Вопрос:** {question}",
         'broadcast_report': "✅ Успешно отправлено: {success_count}\n❌ Не удалось отправить: {fail_count}",
+        'faq_no_answer_ai': "К сожалению, я не могу ответить на ваш вопрос.",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата.
@@ -118,6 +127,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
 ✅ [Первая ключевая сильная сторона, найденная в резюме]
 ✅ [Вторая ключевая сильная сторона, найденная в резюме]
 📊 **Предварительная оценка:** [Подходит / Стоит рассмотреть / Недостаточно опыта]""",
+
     }
 }
 

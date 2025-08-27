@@ -3,10 +3,12 @@
 import logging
 import os
 import google.generativeai as genai
+from aiogram import Bot
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
 # Yangi states va keyboards fayllaridan import qilish
+import database as db
 from states import MainForm, FaqForm
 from keyboards import texts, get_user_keyboard, get_admin_keyboard
 
@@ -17,21 +19,27 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 AUTHORIZED_NUMBERS = os.getenv("AUTHORIZED_NUMBERS", "")
 OPERATOR_USERNAME = os.getenv("OPERATOR_USERNAME", "admin")
 ADMIN_ID = os.getenv("ADMIN_ID")
+HR_GROUP_ID = os.getenv("HR_GROUP_ID")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Bilimlar bazasini yuklash
-def load_knowledge_base(filename: str) -> str:
+# Bilimlar bazasini yuklash funksiyasi
+def load_knowledge_base(lang: str) -> str:
+    """
+    Kerakli tildagi bilimlar bazasini fayldan o'qish uchun funksiya.
+    """
+    filename = f"knowledge_base_{lang}.txt"
     try:
         with open(filename, 'r', encoding='utf-8') as f:
             return f.read()
     except FileNotFoundError:
-        return "Bilimlar bazasi topilmadi."
+        logging.error(f"Bilimlar bazasi fayli topilmadi: {filename}")
+        if lang == 'ru':
+            return "База знаний для русского языка не найдена."
+        return "O'zbek tili uchun bilimlar bazasi topilmadi."
 
-knowledge_base_uz = load_knowledge_base('knowledge_base_uz.txt')
-knowledge_base_ru = load_knowledge_base('knowledge_base_ru.txt')
 
 async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
@@ -72,66 +80,64 @@ async def process_faq_verification_invalid(message: types.Message, state: FSMCon
 
 
 @router.message(FaqForm.in_process, F.text)
-async def handle_faq_questions(message: types.Message, state: FSMContext):
+async def handle_faq_questions(message: types.Message, state: FSMContext, bot: Bot):
     if not GEMINI_API_KEY:
         await message.reply("Kechirasiz, savol-javob moduli sozlanmagan.")
         return
 
     lang = await get_user_lang(state)
     data = await state.get_data()
-
-    question_count = data.get('faq_question_count', 0)
-    if question_count >= 10:
-        await message.reply("Siz savollar limitiga yetdingiz. Suhbatni qaytadan boshlash uchun /start buyrug'ini bering.")
-        await state.set_state(MainForm.main_menu) # Menyuni qaytarish uchun holatni o'zgartiramiz
-        return
-
+    
+    knowledge_base = load_knowledge_base(lang)
+    
     user_question = message.text
-    knowledge_base = knowledge_base_uz if lang == 'uz' else knowledge_base_ru
     chat_history = data.get('chat_history', [])
 
-    formatted_history = ""
-    for entry in chat_history:
-        formatted_history += f"Foydalanuvchi: {entry['user']}\nYordamchi: {entry['assistant']}\n---\n"
+    # --- MUHIM TUZATISH: "Javob yo'q" matnini to'g'ri tilda keyboards.py dan olish ---
+    no_answer_text_for_ai = texts[lang]['faq_no_answer_ai']
     
-    no_answer_text = f"Kechirasiz, bu savolingizga javob topa olmadim. Iltimos, savolingizni boshqacha tarzda bering yoki @{OPERATOR_USERNAME} orqali operator bilan bog'laning."
-
     prompt = f"""
 Ssenariy: Sen O'zbekistondagi kompaniyaning HR yordamchisisan.
 Vazifang: Foydalanuvchining savoliga faqat va faqat quyida berilgan "BILIMLAR BAZASI"dagi ma'lumotlarga asoslanib javob berish.
 Til: Javobni foydalanuvchi tanlagan tilda ({lang}) ber.
 Qo'shimcha qoidalar:
 1. Agar foydalanuvchi "rahmat", "tashakkur" kabi minnatdorchilik bildirsa yoki xayrlashsa, bilimlar bazasidan foydalanma. "Arzimaydi, yana savollaringiz bo'lsa, bemalol murojaat qiling!" kabi xushmuomala javob qaytar.
-2. Agar savolga javob "BILIMLAR BAZASI"da mavjud bo'lmasa, o'zingdan javob to'qima. Aniq qilib "{no_answer_text}" deb javob ber.
-3. Javobni qisqa, aniq va lirik chekinishlarsiz ber.
+2. Agar savolga javob "BILIMLAR BAZASI"da mavjud bo'lmasa, o'zingdan javob to'qima. Aniq qilib "{no_answer_text_for_ai}" deb javob ber. Hech qanday qo'shimcha matn qo'shma.
 
 --- BILIMLAR BAZASI ---
 {knowledge_base}
 --- BILIMLAR BAZASI TUGADI ---
-
---- SUHBAT TARIXI ---
-{formatted_history}
---- SUHBAT TARIXI TUGADI ---
-
 FOYDALANUVCHINING SAVOLI: "{user_question}"
 """
     
     bot_response_text = ""
     try:
         response = await model.generate_content_async(prompt)
-        bot_response_text = response.text
+        bot_response_text = response.text.strip()
     except Exception as e:
         logging.error(f"FAQ Gemini xatoligi: {e}")
-        bot_response_text = "Kechirasiz, hozirda javob berishda texnik muammo yuzaga keldi."
+        bot_response_text = "Texnik xatolik."
 
-    # Javob bilan birga menyuni ham yuborish
-    if str(message.from_user.id) == ADMIN_ID:
-        keyboard = get_admin_keyboard(lang)
+    # --- MUHIM TUZATISH: Javobni to'g'ri tilda tekshirish ---
+    if no_answer_text_for_ai in bot_response_text:
+        db.add_unanswered_question(
+            user_id=message.from_user.id,
+            full_name=message.from_user.full_name,
+            question=user_question
+        )
+        if HR_GROUP_ID:
+            hr_notification = texts[lang]['faq_no_answer_hr_notification'].format(
+                full_name=message.from_user.full_name,
+                question=user_question
+            )
+            try:
+                await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
+            except Exception as e:
+                logging.error(f"HR guruhiga javobsiz savol haqida yuborishda xato: {e}")
+        
+        await message.reply(texts[lang]['faq_no_answer_user'])
     else:
-        keyboard = get_user_keyboard(lang)
-    
-    await message.reply(bot_response_text, reply_markup=keyboard)
+        await message.reply(bot_response_text)
 
-    # Suhbat tarixini yangilash
     chat_history.append({'user': user_question, 'assistant': bot_response_text})
-    await state.update_data(chat_history=chat_history, faq_question_count=question_count + 1)
+    await state.update_data(chat_history=chat_history)
