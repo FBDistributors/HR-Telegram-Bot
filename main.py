@@ -62,8 +62,8 @@ async def start_command(message: Message, state: FSMContext):
     )
     
     caption_text = (
-        "Muloqot uchun qulay tilni tanlang.\n\n"
-        "Пожалуйста, выберите удобный язык для общения."
+        "Assalomu alaykum! Muloqot uchun qulay tilni tanlang.\n\n"
+        "Здравствуйте! Пожалуйста, выберите удобный язык для общения."
     )
     
     language_keyboard = InlineKeyboardMarkup(inline_keyboard=[

@@ -1,4 +1,4 @@
-# admin_panel.py fayli (Diagnostika uchun maxsus versiya)
+# admin_panel.py fayli (Iyerarxik bilimlar bazasi uchun yangilangan)
 
 import os
 import logging
@@ -23,57 +23,84 @@ async def get_user_lang(state: FSMContext):
     return user_data.get('language', 'uz')
 
 
-# --- Word faylni o'qish uchun yordamchi funksiya (DIAGNOSTIKA BILAN) ---
+# --- Word faylni o'qish uchun YORDAMCHI FUNKSIYA (YANGILANDI) ---
 def parse_docx(file_bytes: bytes) -> list:
     """
-    Word (.docx) faylini o'qiydi va har bir qatorni terminalga chiqaradi.
+    Iyerarxik sarlavhalarga ega Word (.docx) faylini o'qiydi.
+    Format:
+    === Sarlavha 1-daraja ===
+    == Sarlavha 2-daraja ==
+    = Sarlavha 3-daraja =
+    Izoh matni...
     """
-    print("\n--- Faylni o'qish boshlandi ---")
+    print("\n--- Iyerarxik faylni o'qish boshlandi ---")
     document = docx.Document(io.BytesIO(file_bytes))
     entries = []
-    current_topic = None
+    
+    # Joriy sarlavhalar iyerarxiyasini saqlash uchun
+    # path[0] -> 1-daraja, path[1] -> 2-daraja, path[2] -> 3-daraja
+    current_path = [None, None, None]
     current_content = []
-    line_number = 0
+    
+    def save_previous_entry():
+        """Oldingi o'qilgan sarlavha va uning matnini saqlash uchun yordamchi funksiya."""
+        if current_content and any(current_path):
+            # None bo'lmagan sarlavhalarni " / " belgisi bilan birlashtiramiz
+            full_topic = " / ".join(filter(None, [p.strip() if p else None for p in current_path]))
+            
+            if full_topic:
+                entries.append({
+                    'topic': full_topic,
+                    'content': "\n".join(current_content).strip()
+                })
+                print(f"--> Saqlandi: Mavzu='{full_topic}'")
 
     for para in document.paragraphs:
-        line_number += 1
         clean_text = para.text.strip()
-        
-        # Har bir qatorni terminalga chiqaramiz
-        print(f"Qator {line_number}: '{clean_text}'")
 
         if not clean_text:
-            print("--> Bo'sh qator, o'tkazib yuborildi.")
             continue
 
+        # Sarlavhalarni darajasiga qarab tekshiramiz
         if clean_text.startswith('===') and clean_text.endswith('==='):
-            print(f"--> SARLAVHA TOPILDI: '{clean_text}'")
-            if current_topic and current_content:
-                entries.append({'topic': current_topic, 'content': "\n".join(current_content)})
-            
-            current_topic = clean_text.replace('===', '').strip()
+            save_previous_entry()
             current_content = []
-            print(f"--> Yangi mavzu: '{current_topic}'")
-        elif current_topic:
-            print("--> Mavzu matniga qo'shildi.")
-            current_content.append(clean_text)
+            title = clean_text.replace('===', '').strip()
+            current_path = [title, None, None] # 1-darajaga o'tamiz, quyi darajalarni tozalaymiz
+            print(f"--> 1-daraja sarlavha: '{title}'")
+            
+        elif clean_text.startswith('==') and clean_text.endswith('=='):
+            save_previous_entry()
+            current_content = []
+            title = clean_text.replace('==', '').strip()
+            current_path[1] = title
+            current_path[2] = None # Eng quyi darajani tozalaymiz
+            print(f"--> 2-daraja sarlavha: '{title}'")
+
+        elif clean_text.startswith('=') and clean_text.endswith('='):
+            save_previous_entry()
+            current_content = []
+            title = clean_text.replace('=', '').strip()
+            current_path[2] = title
+            print(f"--> 3-daraja sarlavha: '{title}'")
+
         else:
-            print("--> E'tiborsiz qoldirildi (hali birorta sarlavha topilmadi).")
+            # Agar qator sarlavha bo'lmasa, uni matn (content) deb hisoblaymiz
+            if any(current_path): # Faqat biror sarlavha ostida bo'lsagina qo'shamiz
+                current_content.append(clean_text)
 
+    # Sikl tugagandan so'ng eng oxirgi yozuvni saqlaymiz
+    save_previous_entry()
 
-    if current_topic and current_content:
-        entries.append({'topic': current_topic, 'content': "\n".join(current_content)})
-
-    print(f"--- O'qish tugadi. Topilgan mavzular soni: {len(entries)} ---")
+    print(f"--- O'qish tugadi. Jami {len(entries)} ta yozuv topildi. ---")
     
     if not entries:
-        raise ValueError("Faylda to'g'ri formatdagi sarlavhalar topilmadi.")
+        raise ValueError("Faylda to'g'ri formatdagi sarlavhalar topilmadi (===, ==, =).")
         
     return entries
 
 
 # --- BILIMLAR BAZASINI FAYL ORQALI YANGILASH ---
-# (Bu yerdan boshlab qolgan kod o'zgarishsiz qoladi)
 
 @router.message(F.text.in_([texts['uz']['kb_update_button'], texts['ru']['kb_update_button']]))
 async def handle_kb_update_button(message: Message, state: FSMContext):
@@ -126,7 +153,12 @@ async def process_kb_lang_choice(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(texts[admin_lang]['kb_update_success'])
     except Exception as e:
         logging.error(f"Faylni qayta ishlashda xatolik: {e}")
-        await callback.message.edit_text(texts[admin_lang]['kb_update_fail_parsing'])
+        # Xatolik matnini ham yangilaymiz
+        error_text = texts[admin_lang]['kb_update_fail_parsing'].replace(
+            "sarlavhalar `=== Sarlavha ===` ko'rinishida bo'lishi kerak",
+            "sarlavhalar iyerarxiyasi (`===`, `==`, `=`) to'g'ri ekanligini tekshiring"
+        )
+        await callback.message.edit_text(error_text)
     
     await state.set_state(MainForm.main_menu)
     await callback.answer()
@@ -169,4 +201,3 @@ async def send_announcement_to_all(message: Message, state: FSMContext, bot: Bot
         reply_markup=get_admin_main_keyboard(lang)
     )
     await state.set_state(MainForm.main_menu)
-
