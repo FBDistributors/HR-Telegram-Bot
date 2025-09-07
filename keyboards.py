@@ -9,13 +9,15 @@ texts = {
         'welcome_menu': "Kerakli bo'limni tanlang:",
         'apply_button': "📝 Ariza topshirish",
         'faq_button': "❓ Savol berish (FAQ)",
+        'start_button': "🏠 Start",
         'broadcast_button': "📢 E'lon yuborish",
         'ask_name': "To'liq ism-sharifingizni kiriting (masalan, Olimov Salim).",
         'faq_auth_prompt': "Bu bo'lim faqat kompaniya xodimlari uchun. Iltimos, shaxsingizni tasdiqlash uchun kontaktingizni yuboring.",
         'button_share_contact': "📱 Kontaktimni ulashish",
         'faq_welcome': "Kompaniyamiz haqida savolingiz bo'lsa, marhamat, yozing.",
         'faq_auth_fail': "Kechirasiz, sizda bu bo'limdan foydalanish uchun ruxsat yo'q.",
-        
+        'ai_rule_thanks': 'Agar foydalanuvchi "rahmat", "tashakkur" kabi minnatdorchilik bildirsa yoki xayrlashsa, bilimlar bazasidan foydalanma. "Arzimaydi, yana savollaringiz bo\'lsa, bemalol murojaat qiling!" kabi xushmuomala javob qaytar.',
+                
         # --- ARIZA BO'LIMI UCHUN TO'LIQ MATNLAR ---
         'ask_has_resume': "Rahmat. Arizani davom ettirish uchun tayyor rezyumeingiz mavjudmi?",
         'has_resume_yes_button': "✅ Ha, rezyume yuborish",
@@ -26,7 +28,7 @@ texts = {
         'ask_experience': "Ish tajribangiz haqida yozing (oxirgi ish joyingiz, lavozimingiz, necha yil ishlaganingiz).",
         'ask_salary': "Oylik maosh bo'yicha kutilmalaringizni kiriting (so'mda).",
         'ask_location': "Yashash manzilingizni kiriting (shahar, tuman).",
-        'ask_skills': "Lavozimga oid eng muhim ko'nikmalaringizni sanab o'ting.",
+        'ask_skills': "Lavozimga oid eng muhim ko'nikmalaringizni sanab o'ting (masalan, MS Excel, 1C, mijozlar bilan ishlash, operator).",
         'ask_availability': "Yaqin kunlarda ish boshlashga tayyormisiz?",
         'availability_yes_button': "✅ Ha",
         'availability_no_button': "❌ Yo'q",
@@ -35,6 +37,23 @@ texts = {
         'analyzing_resume': "Rezyume qabul qilindi. Hozir tahlil qilinmoqda...",
         'analyzing_convo': "Ma'lumotlar qabul qilindi. Hozir tahlil qilinmoqda...",
         'file_format_error': "Iltimos, rezyumeni faqat PDF yoki DOCX formatida yuboring.",
+        # keyboards.py fayli, texts['uz'] ichiga qo'shiladi
+
+        # --- HR GURUHIGA YUBORILADIGAN MATNLAR ---
+        'hr_new_candidate_resume': "Yangi nomzod (Rezyume bilan)!",
+        'hr_new_candidate_convo': "Yangi nomzod (Suhbat orqali)!",
+        'hr_fio': "FIO",
+        'hr_vacancy': "Vakansiya",
+        'hr_candidate_answers': "Nomzod javoblari",
+
+        # keyboards.py fayli, texts['uz'] ichiga qo'shiladi
+
+        'hr_experience': "Tajribasi",
+        'hr_salary': "Maosh kutilmasi",
+        'hr_location': "Manzili",
+        'hr_skills': "Ko'nikmalari",
+        'hr_availability': "Ishga tayyorligi",
+        'hr_contact': "Aloqa",
 
         # --- ADMIN MATNLARI ---
         'ask_announcement': "📢 Marhamat, barcha foydalanuvchilarga yuboriladigan e'lon matnini kiriting:",
@@ -44,6 +63,19 @@ texts = {
         'faq_no_answer_hr_notification': "🔔 **Yangi javobsiz savol!**\n\n👤 **Kimdan:** {full_name}\n❓ **Savol:** {question}",
         'broadcast_report': "✅ E'lon muvaffaqiyatli yuborildi: {success_count} ta\n❌ Yuborib bo'lmadi: {fail_count} ta",
         'faq_no_answer_ai': "Kechirasiz, bu savolingizga javob topa olmadim.",
+
+        # keyboards.py fayli, texts['uz'] ichiga qo'shiladi
+
+        # keyboards.py fayli, texts['uz'] ichidagi o'zgarish
+
+        # --- Bilimlar bazasini boshqarish uchun matnlar ---
+        'kb_update_button': "📚 Fayl orqali yangilash",
+        'ask_for_kb_file': "Iltimos, yangilangan bilimlar bazasi faylini yuboring (`kb_uz.docx` yoki `kb_ru.docx`).",
+        'kb_update_success': "✅ Bilimlar bazasi muvaffaqiyatli yangilandi!",
+        'kb_update_fail_format': "❌ Xatolik! Iltimos, faqat `.docx` formatidagi fayl yuboring.",
+        'kb_file_received': "✅ Fayl qabul qilindi. Endi bu fayl qaysi til uchun ekanligini tanlang:",
+        'kb_update_fail_parsing': "❌ Faylni o'qishda xatolik yuz berdi. Iltimos, fayl formati to'g'riligini tekshiring (sarlavhalar `=== Sarlavha ===` ko'rinishida bo'lishi kerak).",
+
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning suhbat orqali bergan javoblari keltirilgan.
@@ -73,12 +105,14 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'welcome_menu': "Пожалуйста, выберите нужный раздел:",
         'apply_button': "📝 Подать заявку",
         'faq_button': "❓ Задать вопрос (FAQ)",
+        'start_button': "🏠 Start",
         'broadcast_button': "📢 Отправить объявление",
         'ask_name': "Введите Ваши полные имя и фамилию (например, Салимов Олим).",
         'faq_auth_prompt': "Этот раздел предназначен только для сотрудников компании. Пожалуйста, отправьте свой контакт для подтверждения личности.",
         'button_share_contact': "📱 Поделиться моим контактом",
         'faq_welcome': "Если у вас есть вопросы о нашей компании, пожалуйста, напишите.",
         'faq_auth_fail': "К сожалению, у вас нет доступа к этому разделу.",
+        'ai_rule_thanks': 'Если пользователь благодарит (например, "спасибо") или прощается, не используй базу знаний. Ответь вежливо, например: "Пожалуйста! Если у вас будут еще вопросы, обращайтесь."',
 
         'ask_has_resume': "Спасибо. У вас есть готовое резюме для продолжения заявки?",
         'has_resume_yes_button': "✅ Да, отправить резюме",
@@ -89,7 +123,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'ask_experience': "Опишите ваш опыт работы (последнее место работы, должность, сколько лет работали).",
         'ask_salary': "Укажите ваши ожидания по заработной плате (в сумах).",
         'ask_location': "Введите ваш адрес проживания (город, район).",
-        'ask_skills': "Перечислите ваши ключевые навыки для данной позиции.",
+        'ask_skills': "Перечислите ваши ключевые навыки для данной позиции (например, MS Excel, 1C, работа с клиентами, продажи).",
         'ask_availability': "Готовы ли вы приступить к работе в ближайшее время?",
         'availability_yes_button': "✅ Да",
         'availability_no_button': "❌ Нет",
@@ -98,6 +132,23 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'analyzing_resume': "Резюме получено. Сейчас оно анализируется...",
         'analyzing_convo': "Данные получены. Сейчас они анализируются...",
         'file_format_error': "Пожалуйста, отправьте резюме только в формате PDF или DOCX.",
+        # keyboards.py fayli, texts['ru'] ichiga qo'shiladi
+
+        # --- ТЕКСТЫ ДЛЯ ОТПРАВКИ В HR-ГРУППУ ---
+        'hr_new_candidate_resume': "Новый кандидат (с резюме)!",
+        'hr_new_candidate_convo': "Новый кандидат (по итогам чата)!",
+        'hr_fio': "ФИО",
+        'hr_vacancy': "Вакансия",
+        'hr_candidate_answers': "Ответы кандидата",
+
+        # keyboards.py fayli, texts['ru'] ichiga qo'shiladi
+
+        'hr_experience': "Опыт работы",
+        'hr_salary': "Ожидания по зарплате",
+        'hr_location': "Местоположение",
+        'hr_skills': "Навыки",
+        'hr_availability': "Готовность к работе",
+        'hr_contact': "Контакт",
 
         'ask_announcement': "📢 Пожалуйста, введите текст объявления для отправки всем пользователям:",
         'broadcast_started': "Объявление принято. Начинаю рассылку...",
@@ -106,6 +157,17 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'faq_no_answer_hr_notification': "🔔 **Новый вопрос без ответа!**\n\n👤 **От кого:** {full_name}\n❓ **Вопрос:** {question}",
         'broadcast_report': "✅ Успешно отправлено: {success_count}\n❌ Не удалось отправить: {fail_count}",
         'faq_no_answer_ai': "К сожалению, я не могу ответить на ваш вопрос.",
+
+        # keyboards.py fayli, texts['ru'] ichidagi o'zgarish
+
+        # --- Тексты для управления базой знаний ---
+        'kb_update_button': "📚 Обновить через файл",
+        'ask_for_kb_file': "Пожалуйста, отправьте обновленный файл базы знаний (`kb_uz.docx` или `kb_ru.docx`).",
+        'kb_update_success': "✅ База знаний успешно обновлена!",
+        'kb_update_fail_format': "❌ Ошибка! Пожалуйста, отправляйте файл только в формате `.docx`.",
+        'kb_file_received': "✅ Файл получен. Теперь выберите, для какого языка этот файл:",
+        'kb_update_fail_parsing': "❌ Произошла ошибка при чтении файла. Пожалуйста, проверьте правильность формата файла (заголовки должны быть в виде `=== Заголовок ===`).",
+
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата.
@@ -135,8 +197,7 @@ def get_user_keyboard(lang: str = 'uz'):
     """Oddiy foydalanuvchi uchun menyu klaviaturasini qaytaradi."""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=texts[lang]['apply_button'])],
-            [KeyboardButton(text=texts[lang]['faq_button'])],
+            [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])], # <<< O'ZGARTIRILDI
         ],
         resize_keyboard=True
     )
@@ -146,7 +207,21 @@ def get_admin_keyboard(lang: str = 'uz'):
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
-            [KeyboardButton(text=texts[lang]['broadcast_button'])],
+            [KeyboardButton(text=texts[lang]['broadcast_button']), KeyboardButton(text=texts[lang]['start_button'])]
+        ],
+        resize_keyboard=True
+    )
+
+# keyboards.py fayliga qo'shiladigan yangi funksiyalar
+
+def get_admin_main_keyboard(lang: str = 'uz'):
+    """Asosiy admin menyusini qaytaradi."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            # Oddiy foydalanuvchi tugmalarini ham qo'shamiz
+            [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
+            # Admin tugmalari
+            [KeyboardButton(text=texts[lang]['kb_update_button']), KeyboardButton(text=texts[lang]['broadcast_button'])],
         ],
         resize_keyboard=True
     )

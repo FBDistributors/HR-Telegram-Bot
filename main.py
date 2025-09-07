@@ -1,4 +1,4 @@
-# main.py fayli (Тилни сақлайдиган якуний версия)
+# main.py fayli (Tozalangan va to'g'ri ishlaydigan versiya)
 
 import asyncio
 import logging
@@ -13,6 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     InlineKeyboardButton, InlineKeyboardMarkup, Message,
     CallbackQuery, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton,
+    BotCommandScopeDefault
 )
 
 # Boshqa modullarni import qilish
@@ -20,9 +21,10 @@ from savol_javob import router as faq_router
 from ariza_topshirish import router as application_router
 from admin_panel import router as admin_router
 import database as db
-from keyboards import texts, get_user_keyboard, get_admin_keyboard
+from keyboards import texts, get_user_keyboard, get_admin_main_keyboard
 from states import MainForm, FaqForm, AppForm, AdminForm
 from scheduler import check_unanswered_questions
+from utils.commands import user_commands
 
 # SOZLAMALAR
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -41,24 +43,40 @@ async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
     return user_data.get('language', 'uz')
 
-# ASOSIY HANDLER'LAR
+
+async def set_bot_commands(bot_instance: Bot):
+    """Bot uchun menyu buyruqlarini o'rnatadi"""
+    await bot_instance.set_my_commands(user_commands, BotCommandScopeDefault())
+    logging.info("Bot uchun standart buyruqlar o'rnatildi.")
+
+
+# --- ASOSIY HANDLER'LAR ---
 
 @dp.message(CommandStart())
 async def start_command(message: Message, state: FSMContext):
     await state.clear()
-    db.add_user(
+    await db.add_user(
         user_id=message.from_user.id,
         full_name=message.from_user.full_name,
         username=message.from_user.username
     )
+    
+    caption_text = (
+        "Muloqot uchun qulay tilni tanlang.\n\n"
+        "Пожалуйста, выберите удобный язык для общения."
+    )
+    
     language_keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
         [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")]
     ])
+    
     await message.answer(
-        texts['uz']['welcome_lang'] + "\n\n" + texts['ru']['welcome_lang'],
-        reply_markup=language_keyboard
+        text=caption_text,
+        reply_markup=language_keyboard,
+        parse_mode="HTML"
     )
+    
     await state.set_state(MainForm.language_selection)
 
 
@@ -71,7 +89,7 @@ async def process_language_selection(callback: CallbackQuery, state: FSMContext)
     user_id = str(callback.from_user.id)
     
     if user_id == ADMIN_ID:
-        keyboard = get_admin_keyboard(lang)
+        keyboard = get_admin_main_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)
     
@@ -84,14 +102,12 @@ async def process_language_selection(callback: CallbackQuery, state: FSMContext)
 @dp.message(F.text.in_([texts['uz']['apply_button'], texts['ru']['apply_button']]))
 async def handle_apply_button(message: Message, state: FSMContext):
     lang = await get_user_lang(state)
-    # --- МУҲИМ ТУЗАТИШ: state.clear() олиб ташланди ---
-    # Энди ҳолат тўғридан-тўғри ўзгартирилади ва тил маълумоти сақланиб қолади
     await message.answer(texts[lang]['ask_name'])
     await state.set_state(AppForm.name)
 
 
-@dp.message(F.text.in_([texts['uz']['faq_button'], texts['ru']['faq_button']]))
-async def handle_faq_button(message: Message, state: FSMContext):
+async def handle_faq_button_logic(message: Message, state: FSMContext):
+    """Telefon raqam so'rash mantig'ini o'zida saqlaydigan yordamchi funksiya"""
     lang = await get_user_lang(state)
     contact_keyboard = ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
@@ -101,16 +117,36 @@ async def handle_faq_button(message: Message, state: FSMContext):
     await state.set_state(FaqForm.verification)
 
 
-@dp.message(F.text.in_([texts['uz']['broadcast_button'], texts['ru']['broadcast_button']]))
-async def handle_broadcast_button(message: Message, state: FSMContext):
-    if str(message.from_user.id) == ADMIN_ID:
-        lang = await get_user_lang(state)
-        await message.answer(texts[lang]['ask_announcement'], reply_markup=ReplyKeyboardRemove())
-        await state.set_state(AdminForm.waiting_for_announcement)
+@dp.message(F.text.in_([texts['uz']['faq_button'], texts['ru']['faq_button']]))
+async def handle_faq_shortcut(message: Message, state: FSMContext):
+    """
+    Agar foydalanuvchi allaqachon xodim sifatida tanilgan bo'lsa, uni to'g'ridan-to'g'ri
+    FAQ bo'limiga o'tkazadi. Aks holda, raqam so'raydi.
+    """
+    lang = await get_user_lang(state)
+    user_id = message.from_user.id
+
+    if await db.is_employee_by_tg_id(user_id):
+        logging.info(f"Xodim {user_id} FAQ bo'limiga qayta kirdi.")
+        
+        if str(user_id) == ADMIN_ID:
+            keyboard = get_admin_main_keyboard(lang)
+        else:
+            keyboard = get_user_keyboard(lang)
+        
+        await message.answer(texts[lang]['faq_welcome'], reply_markup=keyboard)
+        await state.set_state(FaqForm.in_process)
+    else:
+        # Agar tanilmagan bo'lsa, telefon raqam so'raymiz
+        await handle_faq_button_logic(message, state)
 
 
+# Asosiy ishga tushirish funksiyasi
 async def main():
-    db.init_db()
+    await db.init_db()
+    
+    await set_bot_commands(bot)
+
     dp.include_router(admin_router)
     dp.include_router(application_router)
     dp.include_router(faq_router)
@@ -119,3 +155,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

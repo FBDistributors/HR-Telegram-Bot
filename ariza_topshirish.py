@@ -101,11 +101,13 @@ async def process_resume_file(message: types.Message, state: FSMContext, bot: Bo
         except Exception as e:
             logging.error(f"Faylni tahlil qilishdagi xato: {e}")
 
+    # ariza_topshirish.py, process_resume_file funksiyasi ichida
+
     hr_notification_text = (
-        f"🔔 **Yangi nomzod (Rezyume bilan)!**\n\n"
-        f"👤 **FIO:** {user_data.get('name')}\n"
-        f"-------------------\n"
-        f"{gemini_summary}"
+    f"🔔 **{texts[lang]['hr_new_candidate_resume']}**\n\n"  # <<< Emoji o'zgartirildi
+    f"👤 **{texts[lang]['hr_fio']}:** {user_data.get('name')}\n"
+    f"-------------------\n"
+    f"{gemini_summary}"
     )
     
     if HR_GROUP_ID:
@@ -194,13 +196,15 @@ async def process_convo_contact(message: types.Message, state: FSMContext, bot: 
     
     user_data = await state.get_data()
     
+    # ariza_topshirish.py, process_convo_contact funksiyasi ichida
+
     candidate_summary_text = (
-        f"- **Tajribasi:** {user_data.get('experience')}\n"
-        f"- **Maosh kutilmasi:** {user_data.get('salary')}\n"
-        f"- **Manzili:** {user_data.get('location')}\n"
-        f"- **Ko'nikmalari:** {user_data.get('skills')}\n"
-        f"- **Ishga tayyorligi:** {user_data.get('availability')}\n"
-        f"- **Aloqa:** {user_data.get('contact')}"
+        f"- **{texts[lang]['hr_experience']}:** {user_data.get('experience')}\n"
+        f"- **{texts[lang]['hr_salary']}:** {user_data.get('salary')}\n"
+        f"- **{texts[lang]['hr_location']}:** {user_data.get('location')}\n"
+        f"- **{texts[lang]['hr_skills']}:** {user_data.get('skills')}\n"
+        f"- **{texts[lang]['hr_availability']}:** {user_data.get('availability')}\n"
+        f"- **{texts[lang]['hr_contact']}:** {user_data.get('contact')}"
     )
     
     gemini_summary = "Nomzod haqida AI xulosasini yaratib bo'lmadi."
@@ -212,15 +216,17 @@ async def process_convo_contact(message: types.Message, state: FSMContext, bot: 
         except Exception as e:
             logging.error(f"Suhbatni tahlil qilishdagi xato: {e}")
 
+    # ariza_topshirish.py, process_convo_contact funksiyasi ichida
+
     hr_notification_text = (
-        f"🔔 **Yangi nomzod (Suhbat orqali)!**\n\n"
-        f"👤 **FIO:** {user_data.get('name')}\n"
-        f"👨‍💼 **Vakansiya:** {user_data.get('vacancy')}\n"
-        f"-------------------\n"
-        f"**Nomzod javoblari:**\n"
-        f"{candidate_summary_text}\n"
-        f"-------------------\n"
-        f"{gemini_summary}"
+    f"🔔 **{texts[lang]['hr_new_candidate_convo']}**\n\n"  # <<< Emoji o'zgartirildi
+    f"👤 **{texts[lang]['hr_fio']}:** {user_data.get('name')}\n"
+    f"📋 **{texts[lang]['hr_vacancy']}:** {user_data.get('vacancy')}\n"
+    f"-------------------\n"
+    f"**{texts[lang]['hr_candidate_answers']}:**\n"
+    f"{candidate_summary_text}\n"
+    f"-------------------\n"
+    f"{gemini_summary}"
     )
 
     if HR_GROUP_ID:

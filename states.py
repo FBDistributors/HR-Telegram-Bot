@@ -28,3 +28,10 @@ class AppForm(StatesGroup):
 # Admin paneli uchun holatlar
 class AdminForm(StatesGroup):
     waiting_for_announcement = State()
+
+
+# states.py faylidagi KnowledgeBaseAdmin class'ining yangi ko'rinishi
+
+class KnowledgeBaseAdmin(StatesGroup):
+    waiting_for_kb_file = State()       # .docx faylini kutish holati
+    waiting_for_lang_choice = State() # Til tanlashni kutish holati
