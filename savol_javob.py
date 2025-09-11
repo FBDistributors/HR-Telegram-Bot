@@ -83,16 +83,38 @@ async def handle_faq_questions(message: types.Message, state: FSMContext, bot: B
 
     no_answer_text_for_ai = texts[lang]['faq_no_answer_ai']
     
-    # 3. Promptni suhbat tarixi bilan birga yangilaymiz
+    # 3. Promptni suhbat tarixi va YANGI FORMATLASH QOIDALARI bilan yangilaymiz
     prompt = f"""
-Ssenariy: Sen O'zbekistondagi kompaniyaning HR yordamchisisan.
-Vazifang: Foydalanuvchining savoliga javob berishda avvalgi suhbat tarixini ("SUHBAT TARIXI") va bilimlar bazasini ("BILIMLAR BAZASI") inobatga ol.
-Til: Javobni foydalanuvchi tanlagan tilda ({lang}) ber.
-Qo'shimcha qoidalar:
-1. Agar savol avvalgi suhbatning mantiqiy davomi bo'lsa, shuni hisobga olib javob ber.
-2. {texts[lang]['ai_rule_thanks']}
-3. Agar savolga javob "BILIMLAR BAZASI"da mavjud bo'lmasa, o'zingdan javob to'qima. Aniq qilib "{no_answer_text_for_ai}" deb javob ber. Hech qanday qo'shimcha matn qo'shma.
-4. Javobni "BILIMLAR BAZASIGA ko'ra" degan so'zlar bilan boshlama. To'g'ridan-to'g'ri javobni o'zini ber. 
+    Ssenariy: Sen O'zbekistondagi kompaniyaning HR yordamchisisan.
+    Vazifang: Foydalanuvchining savoliga javob berishda avvalgi suhbat tarixini ("SUHBAT TARIXI") va bilimlar bazasini ("BILIMLAR BAZASI") inobatga ol.
+    Til: Javobni foydalanuvchi tanlagan tilda ({lang}) ber.
+
+    **JAVOB FORMATI UCHUN QAT'IY QOIDA:**
+    Javobni o'qish uchun maksimal darajada qulay, tartibli va chiroyli qil. Yaxlit, uzun matndan MUTLAQO qoch. **HTML teglaridan foydalan.**
+    - **Sarlavhalardan foydalan:** Ma'lumotni mantiqiy qismlarga ajrat va har bir qismni <b>qalin</b> shriftda yozilgan sarlavha bilan boshla.
+    - **Emoji qo'sh:** Har bir sarlavha yoki muhim punkt oldidan unga mos keladigan emoji (masalan, 🏢 Kompaniya, 📅 Sana, 👥 Asoschilar, 📍 Manzil, 🎁 Imtiyozlar) qo'y.
+    - **Ro'yxatlardan foydalan:** Agar javob bir nechta punktlardan iborat bo'lsa (masalan, ta'sischilar, imtiyozlar ro'yxati), ularni albatta ro'yxat (list) ko'rinishida formatla. Har bir punktni yangi qatordan chiroyli belgi bilan boshla. Masalan, `-` yoki `*` o'rniga `🔹`, `✅`, `▫️` yoki `▪️` kabi belgilardan foydalan.
+    - **Misol:** "Kompaniya haqida ma'lumot" so'ralganda, javob quyidagicha ko'rinishda bo'lishi kerak:
+
+    🏢 <b>Umumiy ma'lumot</b>
+    FB Distributors Group - "Abadiy Go'zallik" degan ma'noni anglatadi...
+
+    📅 <b>Tashkil topgan sana</b>
+    2023-yil 17-may
+
+    👥 <b>Ta'sischilar</b>
+    🔹 Xaknazarov Bobir Xusnitdinovich
+    🔹 Xaknazarov Faxriddin Xusnitdinovich
+
+    📍 <b>Manzil</b>
+    Toshkent shahri, Mirobod tumani...
+
+    Qo'shimcha qoidalar:
+    1. Agar savol avvalgi suhbatning mantiqiy davomi bo'lsa, shuni hisobga olib javob ber.
+    2. {texts[lang]['ai_rule_thanks']}
+    3. Agar savolga javob "BILIMLAR BAZASI"da mavjud bo'lmasa, o'zingdan javob to'qima. Aniq qilib "{no_answer_text_for_ai}" deb javob ber. Hech qanday qo'shimcha matn qo'shma.
+    4. Javobni "BILIMLAR BAZASIGA ko'ra" degan so'zlar bilan boshlama. To'g'ridan-to'g'ri javobni o'zini ber. 
+
 
 --- SUHBAT TARIXI ---
 {formatted_history}
@@ -137,7 +159,22 @@ ENG SO'NGGI SAVOL: "{user_question}"
         
         await message.reply(texts[lang]['faq_no_answer_user'])
     else:
-        await message.reply(bot_response_text)
+        # Gemini **...** ishlatganda, uni to'g'ri HTML formatiga o'tkazishning ishonchli usuli
+        parts = bot_response_text.split('**')
+        final_response_text = parts[0]
+        for i in range(1, len(parts)):
+            if i % 2 == 1: # Bu ** belgilari orasidagi matn
+                final_response_text += "<b>" + parts[i] + "</b>"
+            else: # Bu ** belgisidan keyingi oddiy matn
+                final_response_text += parts[i]
+
+        # Javobni HTML formatida yuborishga harakat qilamiz
+        try:
+            await message.reply(final_response_text, parse_mode="HTML")
+        except Exception as e:
+            logging.error(f"HTML parse xatoligi: {e}. Javob oddiy matnda yuborilmoqda.")
+            # Agar HTML'da xatolik bo'lsa, oddiy matn sifatida yuboramiz
+            await message.reply(bot_response_text) # Tozalanmagan, asl variantni yuboramiz
 
     # 4. Yangi savol-javobni bazaga saqlaymiz
     await db.add_chat_message(user_id, 'user', user_question)

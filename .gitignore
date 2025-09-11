@@ -1,6 +1,18 @@
-# .gitignore fayli
-venv/
-config.py
+# Maxfiy ma'lumotlar saqlanadigan fayllar
+# Bu qator .env faylini GitHub'ga yuklashni taqiqlaydi
+.env
+
+# Python'ga oid keraksiz vaqtinchalik fayllar
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# Virtual environment (venv) papkalari
+venv/
+env/
+.venv/
+
+# Kod muharriri (IDE) sozlamalari papkalari
+.vscode/
+.idea/
