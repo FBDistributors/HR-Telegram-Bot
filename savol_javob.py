@@ -159,13 +159,19 @@ ENG SO'NGGI SAVOL: "{user_question}"
         
         await message.reply(texts[lang]['faq_no_answer_user'])
     else:
-        # Gemini **...** ishlatganda, uni to'g'ri HTML formatiga o'tkazishning ishonchli usuli
-        parts = bot_response_text.split('**')
+        # --- MANA SHU BLOKNI TO'LIQ ALMASHTIRING ---
+
+        # 1. Javobni AI qo'shib yuborishi mumkin bo'lgan keraksiz belgilardan tozalaymiz
+        clean_text = bot_response_text.replace("--- html ---", "").replace("```html", "").replace("```", "").strip()
+        clean_text = clean_text.replace("<div>", "").replace("</div>", "").replace("<br>", "\n")
+
+        # 2. Eskirgan **...** formatini <b>...</b> ga majburan o'girib olamiz.
+        parts = clean_text.split('**')
         final_response_text = parts[0]
         for i in range(1, len(parts)):
-            if i % 2 == 1: # Bu ** belgilari orasidagi matn
+            if i % 2 == 1:
                 final_response_text += "<b>" + parts[i] + "</b>"
-            else: # Bu ** belgisidan keyingi oddiy matn
+            else:
                 final_response_text += parts[i]
 
         # Javobni HTML formatida yuborishga harakat qilamiz
@@ -173,8 +179,9 @@ ENG SO'NGGI SAVOL: "{user_question}"
             await message.reply(final_response_text, parse_mode="HTML")
         except Exception as e:
             logging.error(f"HTML parse xatoligi: {e}. Javob oddiy matnda yuborilmoqda.")
-            # Agar HTML'da xatolik bo'lsa, oddiy matn sifatida yuboramiz
-            await message.reply(bot_response_text) # Tozalanmagan, asl variantni yuboramiz
+            # Agar HTML'da xatolik bo'lsa, tozalanmagan asl variantni yuboramiz
+            await message.reply(bot_response_text)
+
 
     # 4. Yangi savol-javobni bazaga saqlaymiz
     await db.add_chat_message(user_id, 'user', user_question)
