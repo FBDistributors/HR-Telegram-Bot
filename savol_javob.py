@@ -1,11 +1,13 @@
 # savol_javob.py fayli (Tozalangan va to'g'ri ishlaydigan versiya)
 
 import logging
+print(">>>>>>>>>> BU MENING YANGI KODIM ISHLADI! <<<<<<<<<<")
 import os
 import google.generativeai as genai
 from aiogram import Bot
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
+import textwrap
 
 import database as db
 from states import MainForm, FaqForm
@@ -127,7 +129,6 @@ async def handle_faq_questions(message: types.Message, state: FSMContext, bot: B
 ENG SO'NGGI SAVOL: "{user_question}"
 """
     print(f"3. Sun'iy intellektga yuborilayotgan to'liq prompt:\n---\n{prompt}\n---")
-    # --- DIAGNOSTIKA QISMI TUGADI ---
 
     bot_response_text = ""
     try:
@@ -159,29 +160,31 @@ ENG SO'NGGI SAVOL: "{user_question}"
         
         await message.reply(texts[lang]['faq_no_answer_user'])
     else:
-        # --- MANA SHU BLOKNI TO'LIQ ALMASHTIRING ---
+        # 1. AI'dan kelgan xom javobni olamiz va ```html``` kabi belgilardan tozalaymiz
+            processed_text = bot_response_text.strip()
+            if processed_text.startswith('```'):
+                lines = processed_text.split('\n')
+                processed_text = '\n'.join(lines[1:-1])
+            processed_text = processed_text.strip()
 
-        # 1. Javobni AI qo'shib yuborishi mumkin bo'lgan keraksiz belgilardan tozalaymiz
-        clean_text = bot_response_text.replace("--- html ---", "").replace("```html", "").replace("```", "").strip()
-        clean_text = clean_text.replace("<div>", "").replace("</div>", "").replace("<br>", "\n")
+            # 2. Telegram qo'llab-quvvatlamaydigan HTML teglarni oddiy qatorga aylantiramiz
+            import re
+            processed_text = processed_text.replace("<p>", "").replace("</p>", "\n")
+            processed_text = processed_text.replace("<ul>", "").replace("</ul>", "\n")
+            processed_text = processed_text.replace("<li>", "").replace("</li>", "\n")
+            processed_text = processed_text.replace("<br>", "\n")
+            
+            # Ketma-ket kelgan bo'sh qatorlarni bittaga qisqartiramiz
+            final_html = re.sub(r'\n{2,}', '\n', processed_text).strip()
 
-        # 2. Eskirgan **...** formatini <b>...</b> ga majburan o'girib olamiz.
-        parts = clean_text.split('**')
-        final_response_text = parts[0]
-        for i in range(1, len(parts)):
-            if i % 2 == 1:
-                final_response_text += "<b>" + parts[i] + "</b>"
-            else:
-                final_response_text += parts[i]
-
-        # Javobni HTML formatida yuborishga harakat qilamiz
-        try:
-            await message.reply(final_response_text, parse_mode="HTML")
-        except Exception as e:
-            logging.error(f"HTML parse xatoligi: {e}. Javob oddiy matnda yuborilmoqda.")
-            # Agar HTML'da xatolik bo'lsa, tozalanmagan asl variantni yuboramiz
-            await message.reply(bot_response_text)
-
+            try:
+                # 3. Tayyor, tozalangan HTMLni yuboramiz
+                await message.reply(final_html, parse_mode="HTML")
+            except Exception as e:
+                logging.error(f"HTML parse xatoligi: {e}. Javob oddiy matnda yuborilmoqda.")
+                # Xato bo'lsa, barcha teglarni olib tashlab yuboramiz
+                clean_text = re.sub('<[^<]+?>', '', final_html)
+                await message.reply(clean_text)
 
     # 4. Yangi savol-javobni bazaga saqlaymiz
     await db.add_chat_message(user_id, 'user', user_question)
@@ -190,5 +193,6 @@ ENG SO'NGGI SAVOL: "{user_question}"
     if no_answer_text_for_ai in bot_response_text:
         await db.add_chat_message(user_id, 'assistant', texts[lang]['faq_no_answer_user'])
     else:
-        await db.add_chat_message(user_id, 'assistant', bot_response_text)
+        # Endi bazaga xom javobni emas, balki biz formatlagan toza javobni saqlaymiz
+        await db.add_chat_message(user_id, 'assistant', final_html)
 
