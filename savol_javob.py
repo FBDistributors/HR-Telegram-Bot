@@ -1,7 +1,6 @@
 # savol_javob.py fayli (Tozalangan va to'g'ri ishlaydigan versiya)
 
 import logging
-print(">>>>>>>>>> BU MENING YANGI KODIM ISHLADI! <<<<<<<<<<")
 import os
 import google.generativeai as genai
 from aiogram import Bot
@@ -34,6 +33,20 @@ async def get_user_lang(state: FSMContext):
 async def process_faq_verification(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
     user_phone_number = message.contact.phone_number
+
+    # --- YANGI QO'SHILGAN BLOK ---
+    # Har ehtimolga qarshi, foydalanuvchi mavjudligini tekshiramiz.
+    # Agar u bazada bo'lmasa, shu yerda qo'shib qo'yamiz.
+    # db.add_user funksiyasi agar foydalanuvchi mavjud bo'lsa, xato bermaydi, shunchaki o'tib ketadi.
+    await db.add_user(
+        user_id=message.from_user.id,
+        full_name=message.from_user.full_name,
+        username=message.from_user.username
+    )
+    # --- YANGI BLOK TUGADI ---
+
+    # Endi raqamni saqlaymiz (foydalanuvchi bazada borligi kafolatlangan)
+    await db.update_user_phone_number(message.from_user.id, user_phone_number)
 
     is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
     

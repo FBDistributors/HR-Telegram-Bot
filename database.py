@@ -31,6 +31,7 @@ class User(Base):
     user_id = Column(BigInteger, primary_key=True, autoincrement=False)
     full_name = Column(String, nullable=False)
     username = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True) 
     created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 class UnansweredQuestion(Base):
@@ -98,6 +99,18 @@ async def add_user(user_id: int, full_name: str, username: str | None):
             session.add(new_user)
             logging.info(f"Yangi foydalanuvchi {user_id} bazaga qo'shildi.")
         await session.commit()
+
+async def update_user_phone_number(user_id: int, phone_number: str):
+    """Foydalanuvchining telefon raqamini bazadagi yozuviga qo'shadi."""
+    async with async_session_maker() as session:
+        # Foydalanuvchini user_id bo'yicha topamiz
+        result = await session.execute(select(User).filter(User.user_id == user_id))
+        user = result.scalars().first()
+        
+        if user:
+            user.phone_number = phone_number
+            await session.commit()
+            logging.info(f"Foydalanuvchi {user_id} uchun telefon raqam ({phone_number}) saqlandi.")
 
 
 
