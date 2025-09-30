@@ -1,7 +1,5 @@
-aiogram
-asyncpg
-SQLAlchemy
-google-generativeai
-python-docx
-python-dotenv
-psycopg2-binary
+aiogram==3.22.0
+protobuf==6.32.1
+python-dotenv==1.1.1
+python_docx==1.2.0
+SQLAlchemy==2.0.43

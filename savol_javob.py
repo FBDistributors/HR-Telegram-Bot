@@ -7,6 +7,7 @@ from aiogram import Bot
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 import textwrap
+import importlib.metadata
 
 import database as db
 from states import MainForm, FaqForm
@@ -74,6 +75,14 @@ async def process_faq_verification_invalid(message: types.Message, state: FSMCon
 
 @router.message(FaqForm.in_process, F.text)
 async def handle_faq_questions(message: types.Message, state: FSMContext, bot: Bot):
+    # --- DIAGNOSTIKA KODI BOSHLANDI ---
+    try:
+        ggai_version = importlib.metadata.version('google-generativeai')
+        print(f">>> DIAGNOSTIKA: O'rnatilgan google-generativeai versiyasi: {ggai_version} <<<")
+    except importlib.metadata.PackageNotFoundError:
+        print(">>> DIAGNOSTIKA: google-generativeai kutubxonasi topilmadi! <<<")
+    # --- DIAGNOSTIKA KODI TUGADI ---
+
     if not GEMINI_API_KEY:
         await message.reply("Kechirasiz, savol-javob moduli sozlanmagan.")
         return
