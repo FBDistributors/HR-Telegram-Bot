@@ -22,7 +22,7 @@ ADMIN_ID = os.getenv("ADMIN_ID")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
 
 async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
