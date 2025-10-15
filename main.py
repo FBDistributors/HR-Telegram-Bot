@@ -147,6 +147,13 @@ async def main():
     
     await set_bot_commands(bot)
 
+    # Polling boshlashdan oldin webhookni olib tashlaymiz
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logging.info("Telegram webhook o'chirildi (drop_pending_updates=True).")
+    except Exception as exc:
+        logging.warning(f"Webhook o'chirishda ogohlantirish: {exc}")
+
     dp.include_router(admin_router)
     dp.include_router(application_router)
     dp.include_router(faq_router)
@@ -154,5 +161,14 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Windows uchun SelectorEventLoop ishlatish (psycopg3 talabi)
+    import sys
+    if sys.platform == 'win32':
+        import selectors
+        selector = selectors.SelectSelector()
+        loop = asyncio.SelectorEventLoop(selector)
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main())
+    else:
+        asyncio.run(main())
 

@@ -28,6 +28,17 @@ async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
     return user_data.get('language', 'uz')
 
+
+def _safe_log(message: str):
+    """Log helper that won't crash on non-encodable characters in some consoles."""
+    try:
+        logging.debug(message)
+    except Exception:
+        try:
+            logging.debug(message.encode('ascii', 'ignore').decode())
+        except Exception:
+            logging.debug(repr(message))
+
 # --- FAQ Bo'limi Handler'lari ---
 
 @router.message(FaqForm.verification, F.contact)
@@ -78,9 +89,9 @@ async def handle_faq_questions(message: types.Message, state: FSMContext, bot: B
     # --- DIAGNOSTIKA KODI BOSHLANDI ---
     try:
         ggai_version = importlib.metadata.version('google-generativeai')
-        print(f">>> DIAGNOSTIKA: O'rnatilgan google-generativeai versiyasi: {ggai_version} <<<")
+        _safe_log(f"[DIAGNOSTIC] google-generativeai: {ggai_version}")
     except importlib.metadata.PackageNotFoundError:
-        print(">>> DIAGNOSTIKA: google-generativeai kutubxonasi topilmadi! <<<")
+        _safe_log("[DIAGNOSTIC] google-generativeai not installed")
     # --- DIAGNOSTIKA KODI TUGADI ---
 
     if not GEMINI_API_KEY:
@@ -92,18 +103,18 @@ async def handle_faq_questions(message: types.Message, state: FSMContext, bot: B
     user_id = message.from_user.id
     
     # --- DIAGNOSTIKA QISMI BOSHLANDI ---
-    print("\n--- SAVOLGA JAVOB BERISH JARAYONI ---")
+    _safe_log("--- SAVOLGA JAVOB BERISH JARAYONI ---")
     
     # 1. Suhbat tarixini bazadan olamiz
     db_history = await db.get_chat_history(user_id)
     formatted_history = "\n".join(
         [f"{'Foydalanuvchi' if msg.role == 'user' else 'Yordamchi'}: {msg.message}" for msg in db_history]
     )
-    print(f"1. Olingan suhbat tarixi:\n---\n{formatted_history}\n---")
+    _safe_log("1. Olingan suhbat tarixi: [omitted in logs]")
 
     # 2. Bilimlar bazasini bazadan olamiz
     knowledge_base = await db.get_knowledge_base_as_string(lang)
-    print(f"2. Bazadan olingan bilimlar bazasi:\n---\n{knowledge_base}\n---")
+    _safe_log("2. Bilimlar bazasi yuklandi: [omitted in logs]")
 
     no_answer_text_for_ai = texts[lang]['faq_no_answer_ai']
     
@@ -150,7 +161,7 @@ async def handle_faq_questions(message: types.Message, state: FSMContext, bot: B
 
 ENG SO'NGGI SAVOL: "{user_question}"
 """
-    print(f"3. Sun'iy intellektga yuborilayotgan to'liq prompt:\n---\n{prompt}\n---")
+    _safe_log("3. AI prompt tayyor: [omitted in logs]")
 
     bot_response_text = ""
     try:
@@ -160,7 +171,9 @@ ENG SO'NGGI SAVOL: "{user_question}"
         bot_response_text = response.text.strip()
     except Exception as e:
         logging.error(f"FAQ Gemini xatoligi: {e}")
-        bot_response_text = "Texnik xatolik yuz berdi, iltimos keyinroq urinib ko'ring."
+        # AI xatoligida ham foydalanuvchiga texnik xabar bermaymiz; 
+        # avtomatik ravishda "javob topilmadi" oqimiga yo'naltiramiz
+        bot_response_text = no_answer_text_for_ai
 
     # Gemini javobiga qarab ish tutamiz
     if no_answer_text_for_ai in bot_response_text:
@@ -183,30 +196,30 @@ ENG SO'NGGI SAVOL: "{user_question}"
         await message.reply(texts[lang]['faq_no_answer_user'])
     else:
         # 1. AI'dan kelgan xom javobni olamiz va ```html``` kabi belgilardan tozalaymiz
-            processed_text = bot_response_text.strip()
-            if processed_text.startswith('```'):
-                lines = processed_text.split('\n')
-                processed_text = '\n'.join(lines[1:-1])
-            processed_text = processed_text.strip()
+        processed_text = bot_response_text.strip()
+        if processed_text.startswith('```'):
+            lines = processed_text.split('\n')
+            processed_text = '\n'.join(lines[1:-1])
+        processed_text = processed_text.strip()
 
-            # 2. Telegram qo'llab-quvvatlamaydigan HTML teglarni oddiy qatorga aylantiramiz
-            import re
-            processed_text = processed_text.replace("<p>", "").replace("</p>", "\n")
-            processed_text = processed_text.replace("<ul>", "").replace("</ul>", "\n")
-            processed_text = processed_text.replace("<li>", "").replace("</li>", "\n")
-            processed_text = processed_text.replace("<br>", "\n")
-            
-            # Ketma-ket kelgan bo'sh qatorlarni bittaga qisqartiramiz
-            final_html = re.sub(r'\n{2,}', '\n', processed_text).strip()
+        # 2. Telegram qo'llab-quvvatlamaydigan HTML teglarni oddiy qatorga aylantiramiz
+        import re
+        processed_text = processed_text.replace("<p>", "").replace("</p>", "\n")
+        processed_text = processed_text.replace("<ul>", "").replace("</ul>", "\n")
+        processed_text = processed_text.replace("<li>", "").replace("</li>", "\n")
+        processed_text = processed_text.replace("<br>", "\n")
+        
+        # Ketma-ket kelgan bo'sh qatorlarni bittaga qisqartiramiz
+        final_html = re.sub(r'\n{2,}', '\n', processed_text).strip()
 
-            try:
-                # 3. Tayyor, tozalangan HTMLni yuboramiz
-                await message.reply(final_html, parse_mode="HTML")
-            except Exception as e:
-                logging.error(f"HTML parse xatoligi: {e}. Javob oddiy matnda yuborilmoqda.")
-                # Xato bo'lsa, barcha teglarni olib tashlab yuboramiz
-                clean_text = re.sub('<[^<]+?>', '', final_html)
-                await message.reply(clean_text)
+        try:
+            # 3. Tayyor, tozalangan HTMLni yuboramiz
+            await message.reply(final_html, parse_mode="HTML")
+        except Exception as e:
+            logging.error(f"HTML parse xatoligi: {e}. Javob oddiy matnda yuborilmoqda.")
+            # Xato bo'lsa, barcha teglarni olib tashlab yuboramiz
+            clean_text = re.sub('<[^<]+?>', '', final_html)
+            await message.reply(clean_text)
 
     # 4. Yangi savol-javobni bazaga saqlaymiz
     await db.add_chat_message(user_id, 'user', user_question)

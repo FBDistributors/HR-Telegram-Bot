@@ -1,12 +1,17 @@
 # database.py fayli (PostgreSQL va SQLAlchemy bilan ishlash uchun to'liq yangilangan)
 
 import os
+from dotenv import load_dotenv
 import logging
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, Text, BigInteger, select, delete
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+import ssl
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+# .env faylini yuklab olish (database moduliga to'g'ridan-to'g'ri import qilinganda ham ishlashi uchun)
+load_dotenv()
 
 # .env faylidan ma'lumotlarni o'qish
 DB_HOST = os.getenv("DB_HOST")
@@ -17,10 +22,20 @@ DB_NAME = os.getenv("DB_NAME")
 DB_PORT = os.getenv("DB_PORT") or "5432"
 
 # Ma'lumotlar bazasiga ulanish uchun havola (URL)
-DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# psycopg (psycopg3) async driver ishlatamiz
+DATABASE_URL = f"postgresql+psycopg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # SQLAlchemy sozlamalari
-engine = create_async_engine(DATABASE_URL, echo=False)
+# psycopg3 async uchun SSLContext
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    connect_args={"sslmode": "require"}
+)
 Base = declarative_base()
 async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -79,10 +94,30 @@ class KnowledgeBase(Base):
 
 # --- ASOSIY FUNKSIYALAR ---
 async def init_db():
-    """Ma'lumotlar bazasini ishga tushiradi va jadvallarni yaratadi."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logging.info("PostgreSQL ma'lumotlar bazasi va jadvallari tayyor.")
+    """Ma'lumotlar bazasini ishga tushiradi va jadvallarni yaratadi.
+
+    Render bepul Postgres uykudan uyg'onayotganda ulanishni yopib yuborishi mumkin,
+    shuning uchun bir necha marta qayta urinish qo'shilgan.
+    """
+    import asyncio
+
+    last_error: Exception | None = None
+    for attempt in range(1, 6):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logging.info("PostgreSQL ma'lumotlar bazasi va jadvallari tayyor.")
+            return
+        except Exception as exc:  # noqa: BLE001 - bu yerda loglash uchun umumiy ushlash kerak
+            last_error = exc
+            wait_s = attempt * 2
+            logging.warning(
+                f"DB ulanishida xato (urinish {attempt}/5): {exc}. {wait_s}s kutib qayta urinaman..."
+            )
+            await asyncio.sleep(wait_s)
+
+    # Agar hamon muvaffaqiyatsiz bo'lsa, asl xatoni ko'taramiz
+    raise last_error  # type: ignore[misc]
 
 
 

@@ -1,0 +1,15 @@
+# Telegram Bot sozlamalari
+BOT_TOKEN=sizning_bot_tokeningiz
+ADMIN_ID=sizning_telegram_id_ingiz
+HR_GROUP_ID=hr_guruh_id_si
+
+# Google Gemini AI API kaliti
+GEMINI_API_KEY=sizning_gemini_api_kalitingiz
+
+# PostgreSQL Database sozlamalari
+DB_HOST=sizning_db_host
+DB_USER=sizning_db_user
+DB_PASS=sizning_db_parol
+DB_NAME=sizning_db_nomi
+DB_PORT=5432
+
