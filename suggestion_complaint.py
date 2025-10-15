@@ -5,7 +5,7 @@ import logging
 from aiogram import Bot, Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 from states import MainForm, SuggestionForm
 from keyboards import texts, get_user_keyboard, get_admin_main_keyboard
@@ -67,6 +67,18 @@ async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot)
     except Exception as e:
         logging.error(f"Telefon raqamni olishda xatolik: {e}")
     
+    # Agar telefon yo'q bo'lsa, foydalanuvchidan kontakt so'rash imkoniyati
+    if phone_number == "Kiritilmagan":
+        contact_keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+        await message.answer(texts[lang]['ask_contact'], reply_markup=contact_keyboard)
+        # Xabarni state'ga vaqtincha saqlab turamiz
+        await state.update_data(pending_suggestion_text=suggestion_text)
+        return
+
     # HR guruhiga yuborish
     if HR_GROUP_ID:
         hr_notification = (
@@ -98,6 +110,50 @@ async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot)
     else:
         keyboard = get_user_keyboard(lang)
     
+    await message.answer(texts[lang]['welcome_menu'], reply_markup=keyboard)
+    await state.set_state(MainForm.main_menu)
+
+
+@router.message(SuggestionForm.waiting_text, F.contact)
+async def process_suggestion_contact(message: Message, state: FSMContext, bot: Bot):
+    """Agar telefon so'ralgan bo'lsa, kontakt kelganda HRga xabarni yuborish"""
+    lang = await get_user_lang(state)
+    user_data = await state.get_data()
+    suggestion_text = user_data.get('pending_suggestion_text', '')
+
+    # Raqamni bazaga saqlab qo'yamiz
+    try:
+        await db.update_user_phone_number(message.from_user.id, message.contact.phone_number)
+    except Exception:
+        pass
+
+    full_name = message.from_user.full_name
+    username = message.from_user.username
+    phone_number = message.contact.phone_number or "Kiritilmagan"
+
+    if HR_GROUP_ID:
+        hr_notification = (
+            f"🔔 **{texts[lang]['hr_new_suggestion']}**\n\n"
+            f"👤 **FIO:** {full_name}"
+        )
+        if username:
+            hr_notification += f" (@{username})"
+        hr_notification += (
+            f"\n📱 **Telefon:** {phone_number}\n"
+            f"-------------------\n"
+            f"📝 **Xabar:**\n{suggestion_text}"
+        )
+        try:
+            await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
+        except Exception as e:
+            logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
+
+    await message.answer(texts[lang]['suggestion_thanks'], reply_markup=ReplyKeyboardRemove())
+
+    if str(message.from_user.id) == ADMIN_ID:
+        keyboard = get_admin_main_keyboard(lang)
+    else:
+        keyboard = get_user_keyboard(lang)
     await message.answer(texts[lang]['welcome_menu'], reply_markup=keyboard)
     await state.set_state(MainForm.main_menu)
 
