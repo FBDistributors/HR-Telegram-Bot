@@ -1,7 +1,6 @@
 aiogram
-asyncpg
 SQLAlchemy
 google-generativeai
 python-docx
 python-dotenv
-psycopg2-binary
+psycopg[binary]
