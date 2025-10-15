@@ -9,6 +9,7 @@ texts = {
         'welcome_menu': "Kerakli bo'limni tanlang:",
         'apply_button': "📝 Ariza topshirish",
         'faq_button': "❓ Savol berish (FAQ)",
+        'suggestion_button': "💬 Taklif va shikoyatlar",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 E'lon yuborish",
         'ask_name': "To'liq ism-sharifingizni kiriting (masalan, Olimov Salim).",
@@ -76,6 +77,10 @@ texts = {
         'kb_file_received': "✅ Fayl qabul qilindi. Endi bu fayl qaysi til uchun ekanligini tanlang:",
         'kb_update_fail_parsing': "❌ Faylni o'qishda xatolik yuz berdi. Iltimos, fayl formati to'g'riligini tekshiring (sarlavhalar `=== Sarlavha ===` ko'rinishida bo'lishi kerak).",
 
+        # --- TAKLIF VA SHIKOYATLAR BO'LIMI ---
+        'ask_suggestion_text': "Taklifingiz yoki shikoyatingizni yozing:",
+        'suggestion_thanks': "Xabaringiz qabul qilindi, rahmat!",
+        'hr_new_suggestion': "Yangi taklif/shikoyat!",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning suhbat orqali bergan javoblari keltirilgan.
@@ -105,6 +110,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'welcome_menu': "Пожалуйста, выберите нужный раздел:",
         'apply_button': "📝 Подать заявку",
         'faq_button': "❓ Задать вопрос (FAQ)",
+        'suggestion_button': "💬 Предложения и жалобы",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 Отправить объявление",
         'ask_name': "Введите Ваши полные имя и фамилию (например, Салимов Олим).",
@@ -168,6 +174,10 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'kb_file_received': "✅ Файл получен. Теперь выберите, для какого языка этот файл:",
         'kb_update_fail_parsing': "❌ Произошла ошибка при чтении файла. Пожалуйста, проверьте правильность формата файла (заголовки должны быть в виде `=== Заголовок ===`).",
 
+        # --- РАЗДЕЛ ПРЕДЛОЖЕНИЙ И ЖАЛОБ ---
+        'ask_suggestion_text': "Напишите ваше предложение или жалобу:",
+        'suggestion_thanks': "Ваше сообщение принято, спасибо!",
+        'hr_new_suggestion': "Новое предложение/жалоба!",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата.
@@ -197,7 +207,8 @@ def get_user_keyboard(lang: str = 'uz'):
     """Oddiy foydalanuvchi uchun menyu klaviaturasini qaytaradi."""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])], # <<< O'ZGARTIRILDI
+            [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
+            [KeyboardButton(text=texts[lang]['suggestion_button'])]
         ],
         resize_keyboard=True
     )
@@ -220,6 +231,7 @@ def get_admin_main_keyboard(lang: str = 'uz'):
         keyboard=[
             # Oddiy foydalanuvchi tugmalarini ham qo'shamiz
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
+            [KeyboardButton(text=texts[lang]['suggestion_button'])],
             # Admin tugmalari
             [KeyboardButton(text=texts[lang]['kb_update_button']), KeyboardButton(text=texts[lang]['broadcast_button'])],
         ],

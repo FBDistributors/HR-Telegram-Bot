@@ -35,3 +35,7 @@ class AdminForm(StatesGroup):
 class KnowledgeBaseAdmin(StatesGroup):
     waiting_for_kb_file = State()       # .docx faylini kutish holati
     waiting_for_lang_choice = State() # Til tanlashni kutish holati
+
+# Taklif va shikoyatlar uchun holatlar
+class SuggestionForm(StatesGroup):
+    waiting_text = State()
