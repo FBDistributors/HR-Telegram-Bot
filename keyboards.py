@@ -9,6 +9,7 @@ texts = {
         'welcome_menu': "Kerakli bo'limni tanlang:",
         'apply_button': "📝 Ariza topshirish",
         'faq_button': "❓ Savol berish (FAQ)",
+        'documents_button': "📄 Hujjatlar",
         'suggestion_button': "💬 Taklif va shikoyatlar",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 E'lon yuborish",
@@ -83,6 +84,18 @@ texts = {
         'hr_new_suggestion': "Yangi taklif/shikoyat!",
         'hr_reply_prefix': "HR jamoasidan javob:",
 
+        # --- HUJJATLAR BO'LIMI ---
+        'documents_auth_prompt': "Bu bo'lim faqat kompaniya xodimlari uchun. Iltimos, shaxsingizni tasdiqlash uchun kontaktingizni yuboring.",
+        'documents_welcome': "Kerakli hujjat kategoriyasini tanlang:",
+        'documents_auth_fail': "Kechirasiz, sizda bu bo'limdan foydalanish uchun ruxsat yo'q.",
+        'category_ariza': "📝 Ariza shakllari",
+        'category_kompaniya': "🏢 Kompaniya hujjatlari",
+        'choose_format': "Formatni tanlang:",
+        'format_pdf': "📕 PDF",
+        'format_docx': "📘 Word (DOCX)",
+        'back_to_categories': "⬅️ Orqaga",
+        'back_to_documents': "⬅️ Hujjatlarga qaytish",
+
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning suhbat orqali bergan javoblari keltirilgan.
 Ushbu ma'lumotlarni tahlil qilib, nomzod haqida o'zbek tilida, lotin alifbosida qisqacha va aniq xulosa yoz.
@@ -111,6 +124,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'welcome_menu': "Пожалуйста, выберите нужный раздел:",
         'apply_button': "📝 Подать заявку",
         'faq_button': "❓ Задать вопрос (FAQ)",
+        'documents_button': "📄 Документы",
         'suggestion_button': "💬 Предложения и жалобы",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 Отправить объявление",
@@ -181,6 +195,18 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'hr_new_suggestion': "Новое предложение/жалоба!",
         'hr_reply_prefix': "Ответ от HR команды:",
 
+        # --- РАЗДЕЛ ДОКУМЕНТОВ ---
+        'documents_auth_prompt': "Этот раздел предназначен только для сотрудников компании. Пожалуйста, отправьте свой контакт для подтверждения личности.",
+        'documents_welcome': "Пожалуйста, выберите нужную категорию документа:",
+        'documents_auth_fail': "К сожалению, у вас нет доступа к этому разделу.",
+        'category_ariza': "📝 Бланки заявлений",
+        'category_kompaniya': "🏢 Документы компании",
+        'choose_format': "Выберите формат:",
+        'format_pdf': "📕 PDF",
+        'format_docx': "📘 Word (DOCX)",
+        'back_to_categories': "⬅️ Назад",
+        'back_to_documents': "⬅️ Вернуться к документам",
+
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата.
 Проанализируй эту информацию и напиши краткое и четкое заключение о кандидате на русском языке.
@@ -210,7 +236,7 @@ def get_user_keyboard(lang: str = 'uz'):
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
-            [KeyboardButton(text=texts[lang]['suggestion_button'])]
+            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['suggestion_button'])]
         ],
         resize_keyboard=True
     )
@@ -233,7 +259,7 @@ def get_admin_main_keyboard(lang: str = 'uz'):
         keyboard=[
             # Oddiy foydalanuvchi tugmalarini ham qo'shamiz
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
-            [KeyboardButton(text=texts[lang]['suggestion_button'])],
+            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['suggestion_button'])],
             # Admin tugmalari
             [KeyboardButton(text=texts[lang]['kb_update_button']), KeyboardButton(text=texts[lang]['broadcast_button'])],
         ],

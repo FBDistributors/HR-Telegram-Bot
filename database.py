@@ -100,6 +100,21 @@ class SuggestionMessage(Base):
     created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
+class Document(Base):
+    __tablename__ = 'documents'
+    id = Column(Integer, primary_key=True)
+    name_uz = Column(String, nullable=False)  # O'zbek nomi
+    name_ru = Column(String, nullable=False)  # Rus nomi
+    category = Column(String, nullable=False)  # ariza, kompaniya
+    file_path_uz_pdf = Column(String, nullable=True)  # O'zbek PDF yo'li
+    file_path_uz_docx = Column(String, nullable=True)  # O'zbek DOCX yo'li
+    file_path_ru_pdf = Column(String, nullable=True)  # Rus PDF yo'li
+    file_path_ru_docx = Column(String, nullable=True)  # Rus DOCX yo'li
+    description_uz = Column(Text, nullable=True)  # O'zbek tavsifi
+    description_ru = Column(Text, nullable=True)  # Rus tavsifi
+    created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+
 
 # --- ASOSIY FUNKSIYALAR ---
 async def init_db():
@@ -372,4 +387,47 @@ async def get_suggestion_by_hr_message(hr_message_id: int):
             select(SuggestionMessage).where(SuggestionMessage.hr_message_id == hr_message_id)
         )
         suggestion = result.scalars().first()
-        return suggestion        
+        return suggestion
+
+
+# --- HUJJATLAR UCHUN FUNKSIYALAR ---
+
+async def get_documents_by_category(category: str, lang: str):
+    """Berilgan kategoriya bo'yicha hujjatlarni qaytaradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Document).where(Document.category == category)
+        )
+        documents = result.scalars().all()
+        
+        # Lang bo'yicha nom va tavsifni tanlaymiz
+        result_docs = []
+        for doc in documents:
+            doc_dict = {
+                'id': doc.id,
+                'name': doc.name_uz if lang == 'uz' else doc.name_ru,
+                'description': (doc.description_uz if lang == 'uz' else doc.description_ru) if doc.description_uz or doc.description_ru else None,
+                'file_path_pdf': doc.file_path_uz_pdf if lang == 'uz' else doc.file_path_ru_pdf,
+                'file_path_docx': doc.file_path_uz_docx if lang == 'uz' else doc.file_path_ru_docx,
+                'category': doc.category
+            }
+            result_docs.append(doc_dict)
+        
+        return result_docs
+
+
+async def get_document_by_id(doc_id: int):
+    """ID bo'yicha hujjatni topadi."""
+    async with async_session_maker() as session:
+        document = await session.get(Document, doc_id)
+        return document
+
+
+async def get_all_categories(lang: str = 'uz'):
+    """Barcha mavjud kategoriyalarni qaytaradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Document.category).distinct()
+        )
+        categories = result.scalars().all()
+        return categories        

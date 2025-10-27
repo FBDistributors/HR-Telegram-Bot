@@ -21,9 +21,10 @@ from savol_javob import router as faq_router
 from ariza_topshirish import router as application_router
 from admin_panel import router as admin_router
 from suggestion_complaint import router as suggestion_router
+from documents import router as documents_router
 import database as db
 from keyboards import texts, get_user_keyboard, get_admin_main_keyboard
-from states import MainForm, FaqForm, AppForm, AdminForm
+from states import MainForm, FaqForm, AppForm, AdminForm, DocumentForm
 from scheduler import check_unanswered_questions
 from utils.commands import user_commands
 
@@ -156,6 +157,7 @@ async def main():
         logging.warning(f"Webhook o'chirishda ogohlantirish: {exc}")
 
     dp.include_router(suggestion_router)
+    dp.include_router(documents_router)
     dp.include_router(admin_router)
     dp.include_router(application_router)
     dp.include_router(faq_router)

@@ -39,3 +39,10 @@ class KnowledgeBaseAdmin(StatesGroup):
 # Taklif va shikoyatlar uchun holatlar
 class SuggestionForm(StatesGroup):
     waiting_text = State()
+
+# Hujjatlar bo'limi uchun holatlar
+class DocumentForm(StatesGroup):
+    verification = State()  # Xodim ekanligini tekshirish
+    waiting_category = State()  # Kategoriya tanlash
+    waiting_document = State()  # Hujjat tanlash
+    waiting_format = State()  # Format tanlash (PDF/DOCX)
