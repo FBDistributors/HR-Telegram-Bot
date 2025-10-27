@@ -96,8 +96,10 @@ async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot)
         )
         
         try:
-            await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
+            sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
             logging.info(f"Taklif/shikoyat HR guruhiga yuborildi. User ID: {user_id}")
+            # HR guruhidagi xabar ID sini bazaga saqlash
+            await db.save_suggestion_message(user_id, sent_message.message_id, lang)
         except Exception as e:
             logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
     
@@ -144,7 +146,9 @@ async def process_suggestion_contact(message: Message, state: FSMContext, bot: B
             f"📝 **Xabar:**\n{suggestion_text}"
         )
         try:
-            await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
+            sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
+            # HR guruhidagi xabar ID sini bazaga saqlash
+            await db.save_suggestion_message(message.from_user.id, sent_message.message_id, lang)
         except Exception as e:
             logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
 
@@ -156,4 +160,51 @@ async def process_suggestion_contact(message: Message, state: FSMContext, bot: B
         keyboard = get_user_keyboard(lang)
     await message.answer(texts[lang]['welcome_menu'], reply_markup=keyboard)
     await state.set_state(MainForm.main_menu)
+
+
+# --- HR GURUHIDA REPLY QILISH FUNKSIYASI ---
+
+@router.message(F.reply_to_message)
+async def handle_hr_group_reply(message: Message, bot: Bot):
+    """HR guruhida bot xabariga reply qilinganda ishga tushadi"""
+    
+    # HR_GROUP_ID sozlangan bo'lishi kerak
+    if not HR_GROUP_ID:
+        return
+    
+    # Faqat HR guruhidan kelgan xabarlarni qabul qilamiz
+    if str(message.chat.id) != str(HR_GROUP_ID):
+        return
+    
+    # Faqat text xabarlarni qabul qilamiz
+    if not message.text:
+        return
+    
+    # Reply qilingan xabar botdan bo'lishi kerak
+    if not message.reply_to_message.from_user.is_bot:
+        return
+    
+    try:
+        # Reply qilingan xabar ID sini olamiz
+        replied_message_id = message.reply_to_message.message_id
+        
+        # Bazadan asl foydalanuvchi ma'lumotlarini topamiz
+        suggestion = await db.get_suggestion_by_hr_message(replied_message_id)
+        
+        if not suggestion:
+            return  # Agar topilmasa, hech narsa qilmaymiz
+        
+        # Asl foydalanuvchi ma'lumotlarini olamiz
+        user_id = suggestion.user_id
+        user_lang = suggestion.user_lang
+        
+        # Javob matnini tayyorlaymiz
+        reply_text = f"{texts[user_lang]['hr_reply_prefix']} {message.text}"
+        
+        # Foydalanuvchiga javob yuboramiz
+        await bot.send_message(chat_id=user_id, text=reply_text)
+        logging.info(f"HR javobi foydalanuvchiga yuborildi. User ID: {user_id}, Reply: {message.text[:50]}")
+        
+    except Exception as e:
+        logging.error(f"HR guruh javobini ishlashda xatolik: {e}")
 

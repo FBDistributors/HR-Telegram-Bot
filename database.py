@@ -91,6 +91,15 @@ class KnowledgeBase(Base):
     lang = Column(String(2), nullable=False) # Til kodi ('uz' yoki 'ru')
 
 
+class SuggestionMessage(Base):
+    __tablename__ = 'suggestion_messages'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, nullable=False)
+    hr_message_id = Column(Integer, nullable=False)  # HR guruhidagi xabar ID
+    user_lang = Column(String(2), nullable=False)  # Foydalanuvchi tili
+    created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+
 
 # --- ASOSIY FUNKSIYALAR ---
 async def init_db():
@@ -338,4 +347,29 @@ async def replace_kb_from_list(entries: list, lang: str):
             session.add_all(new_kb_objects)
 
         await session.commit()
-        logging.info(f"'{lang}' tili uchun bilimlar bazasi muvaffaqiyatli yangilandi.")        
+        logging.info(f"'{lang}' tili uchun bilimlar bazasi muvaffaqiyatli yangilandi.")
+
+
+# --- TAKLIF/SHIKOYAT XABARLARI UCHUN YANGI FUNKSIYALAR ---
+
+async def save_suggestion_message(user_id: int, hr_message_id: int, lang: str):
+    """HR guruhiga yuborilgan taklif/shikoyat xabarining ma'lumotlarini saqlaydi."""
+    async with async_session_maker() as session:
+        new_suggestion_message = SuggestionMessage(
+            user_id=user_id,
+            hr_message_id=hr_message_id,
+            user_lang=lang
+        )
+        session.add(new_suggestion_message)
+        await session.commit()
+        logging.info(f"Taklif/shikoyat xabari saqlandi: User ID {user_id}, HR Message ID {hr_message_id}")
+
+
+async def get_suggestion_by_hr_message(hr_message_id: int):
+    """HR guruhidagi xabar ID si orqali asl foydalanuvchi ma'lumotlarini topadi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(SuggestionMessage).where(SuggestionMessage.hr_message_id == hr_message_id)
+        )
+        suggestion = result.scalars().first()
+        return suggestion        

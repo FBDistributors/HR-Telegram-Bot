@@ -81,6 +81,7 @@ texts = {
         'ask_suggestion_text': "Taklifingiz yoki shikoyatingizni yozing:",
         'suggestion_thanks': "Xabaringiz qabul qilindi, rahmat!",
         'hr_new_suggestion': "Yangi taklif/shikoyat!",
+        'hr_reply_prefix': "HR jamoasidan javob:",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning suhbat orqali bergan javoblari keltirilgan.
@@ -178,6 +179,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'ask_suggestion_text': "Напишите ваше предложение или жалобу:",
         'suggestion_thanks': "Ваше сообщение принято, спасибо!",
         'hr_new_suggestion': "Новое предложение/жалоба!",
+        'hr_reply_prefix': "Ответ от HR команды:",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата.
