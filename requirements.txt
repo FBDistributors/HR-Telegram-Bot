@@ -4,3 +4,4 @@ google-generativeai
 python-docx
 python-dotenv
 psycopg[binary]
+aiofiles

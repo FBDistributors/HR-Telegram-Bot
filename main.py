@@ -25,7 +25,7 @@ from documents import router as documents_router
 import database as db
 from keyboards import texts, get_user_keyboard, get_admin_main_keyboard
 from states import MainForm, FaqForm, AppForm, AdminForm, DocumentForm
-from scheduler import check_unanswered_questions
+from scheduler import check_unanswered_questions, cleanup_expired_documents
 from utils.commands import user_commands
 
 # SOZLAMALAR
@@ -162,6 +162,7 @@ async def main():
     dp.include_router(application_router)
     dp.include_router(faq_router)
     asyncio.create_task(check_unanswered_questions(bot))
+    asyncio.create_task(cleanup_expired_documents())
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

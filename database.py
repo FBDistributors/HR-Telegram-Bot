@@ -103,15 +103,23 @@ class SuggestionMessage(Base):
 class Document(Base):
     __tablename__ = 'documents'
     id = Column(Integer, primary_key=True)
-    name_uz = Column(String, nullable=False)  # O'zbek nomi
-    name_ru = Column(String, nullable=False)  # Rus nomi
-    category = Column(String, nullable=False)  # ariza, kompaniya
-    file_path_uz_pdf = Column(String, nullable=True)  # O'zbek PDF yo'li
-    file_path_uz_docx = Column(String, nullable=True)  # O'zbek DOCX yo'li
-    file_path_ru_pdf = Column(String, nullable=True)  # Rus PDF yo'li
-    file_path_ru_docx = Column(String, nullable=True)  # Rus DOCX yo'li
-    description_uz = Column(Text, nullable=True)  # O'zbek tavsifi
-    description_ru = Column(Text, nullable=True)  # Rus tavsifi
+    name_uz = Column(String, nullable=True)  # O'zbek nomi
+    name_ru = Column(String, nullable=True)  # Rus nomi
+    category = Column(String, nullable=True)  # Kategoriya
+    is_template = Column(String, default='true')  # 'true' (namuna) yoki 'false' (ma'lumot)
+    uploaded_by = Column(BigInteger, nullable=True)  # Kim yukladi
+    document_type = Column(String, nullable=True)  # Hisobot, Ariza, Ko'rsatma, Umumiy
+    expires_at = Column(String, nullable=True)  # Amal qilish muddati
+    is_active = Column(String, default='true')  # Faolmi
+    # Namuna hujjatlar uchun (4 ta fayl)
+    file_path_uz_pdf = Column(String, nullable=True)
+    file_path_uz_docx = Column(String, nullable=True)
+    file_path_ru_pdf = Column(String, nullable=True)
+    file_path_ru_docx = Column(String, nullable=True)
+    # Ma'lumot hujjatlar uchun (bitta fayl)
+    file_path_single = Column(String, nullable=True)
+    description_uz = Column(Text, nullable=True)
+    description_ru = Column(Text, nullable=True)
     created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
@@ -130,6 +138,8 @@ async def init_db():
         try:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+                # Jadval sxemasini minimal darajada migratsiya qilish
+                await _migrate_documents_table(conn)
             logging.info("PostgreSQL ma'lumotlar bazasi va jadvallari tayyor.")
             return
         except Exception as exc:  # noqa: BLE001 - bu yerda loglash uchun umumiy ushlash kerak
@@ -142,6 +152,38 @@ async def init_db():
 
     # Agar hamon muvaffaqiyatsiz bo'lsa, asl xatoni ko'taramiz
     raise last_error  # type: ignore[misc]
+async def _migrate_documents_table(conn) -> None:
+    """`documents` jadvali uchun kerakli ustunlar mavjudligini tekshiradi va yo'q bo'lsa qo'shadi.
+
+    create_all sxemani yangilamaydi, shuning uchun ishlab chiqishda oddiy IF NOT EXISTS migratsiya kifoya.
+    """
+    from sqlalchemy import text
+
+    alter_statements = [
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS name_uz VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS name_ru VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_template VARCHAR DEFAULT 'true'",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS uploaded_by BIGINT",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS document_type VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS expires_at VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_active VARCHAR DEFAULT 'true'",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_path_uz_pdf VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_path_uz_docx VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_path_ru_pdf VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_path_ru_docx VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_path_single VARCHAR",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS description_uz TEXT",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS description_ru TEXT",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS created_at VARCHAR",
+    ]
+
+    for stmt in alter_statements:
+        try:
+            await conn.execute(text(stmt))
+        except Exception as exc:  # pragma: no cover - faqat log uchun
+            logging.warning(f"Documents jadvali migratsiyasi: {exc}")
+
 
 
 
@@ -423,11 +465,156 @@ async def get_document_by_id(doc_id: int):
         return document
 
 
-async def get_all_categories(lang: str = 'uz'):
-    """Barcha mavjud kategoriyalarni qaytaradi."""
+async def get_template_documents(lang: str):
+    """Namuna hujjatlarni qaytaradi (is_template='true')."""
     async with async_session_maker() as session:
         result = await session.execute(
-            select(Document.category).distinct()
+            select(Document).where(
+                Document.is_template == 'true',
+                Document.is_active == 'true'
+            )
         )
-        categories = result.scalars().all()
-        return categories        
+        documents = result.scalars().all()
+        
+        result_docs = []
+        for doc in documents:
+            result_docs.append({
+                'id': doc.id,
+                'name': doc.name_uz if lang == 'uz' else doc.name_ru,
+                'file_path_pdf': doc.file_path_uz_pdf if lang == 'uz' else doc.file_path_ru_pdf,
+                'file_path_docx': doc.file_path_uz_docx if lang == 'uz' else doc.file_path_ru_docx,
+            })
+        
+        return result_docs
+
+
+async def get_info_documents(lang: str):
+    """Ma'lumot hujjatlarni qaytaradi (is_template='false')."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Document).where(
+                Document.is_template == 'false',
+                Document.is_active == 'true'
+            )
+        )
+        documents = result.scalars().all()
+        
+        result_docs = []
+        for doc in documents:
+            result_docs.append({
+                'id': doc.id,
+                'name': doc.name_uz,
+                'document_type': doc.document_type,
+                'uploaded_by': doc.uploaded_by,
+                'created_at': doc.created_at,
+                'file_path': doc.file_path_single
+            })
+        
+        return result_docs
+
+
+async def add_document(
+    name_uz: str, name_ru: str, is_template: str,
+    file_path_uz_pdf: str = None, file_path_uz_docx: str = None,
+    file_path_ru_pdf: str = None, file_path_ru_docx: str = None,
+    file_path_single: str = None,
+    uploaded_by: int = None, document_type: str = None,
+    expires_at: str = None, category: str = None
+):
+    """Yangi hujjat qo'shadi."""
+    async with async_session_maker() as session:
+        new_doc = Document(
+            name_uz=name_uz,
+            name_ru=name_ru,
+            is_template=is_template,
+            file_path_uz_pdf=file_path_uz_pdf,
+            file_path_uz_docx=file_path_uz_docx,
+            file_path_ru_pdf=file_path_ru_pdf,
+            file_path_ru_docx=file_path_ru_docx,
+            file_path_single=file_path_single,
+            uploaded_by=uploaded_by,
+            document_type=document_type,
+            category=category,
+            expires_at=expires_at
+        )
+        session.add(new_doc)
+        await session.commit()
+        logging.info(f"Yangi hujjat bazaga qo'shildi: {name_uz}")
+        return new_doc.id
+
+
+async def delete_info_documents_by_type(document_type: str) -> list[str]:
+    """Berilgan turdagi (is_template='false') ma'lumot hujjatlarni bazadan o'chiradi.
+
+    Qaytaradi: o'chirilgan fayl yo'llari ro'yxati (diskdan ham o'chirish uchun qulay).
+    """
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Document).where(
+                Document.is_template == 'false',
+                Document.document_type == document_type
+            )
+        )
+        docs = result.scalars().all()
+
+        file_paths: list[str] = []
+        for doc in docs:
+            if doc.file_path_single:
+                file_paths.append(doc.file_path_single)
+            await session.delete(doc)
+
+        if docs:
+            await session.commit()
+            logging.info(
+                f"Ma'lumot hujjatlari ('{document_type}') eski yozuvlari o'chirildi: {len(docs)} ta"
+            )
+        return file_paths
+
+
+async def delete_expired_documents():
+    """Muddati o'tgan hujjatlarni o'chirish."""
+    from datetime import datetime, timedelta
+    
+    async with async_session_maker() as session:
+        current_date = datetime.now()
+        
+        # Muddati o'tganlarni is_active=False qilish
+        result = await session.execute(
+            select(Document).where(
+                Document.is_active == 'true',
+                Document.expires_at.isnot(None)
+            )
+        )
+        documents = result.scalars().all()
+        
+        expired_count = 0
+        for doc in documents:
+            try:
+                if doc.expires_at:
+                    exp_date = datetime.strptime(doc.expires_at, "%Y-%m-%d %H:%M:%S")
+                    if exp_date < current_date:
+                        doc.is_active = 'false'
+                        expired_count += 1
+            except Exception as e:
+                logging.error(f"Hujjat muddati o'qishda xato: {e}")
+        
+        # 30 kun o'tgan is_active=False ni butunlay o'chirish
+        thirty_days_ago = current_date - timedelta(days=30)
+        result_old = await session.execute(
+            select(Document).where(Document.is_active == 'false')
+        )
+        old_docs = result_old.scalars().all()
+        
+        deleted_count = 0
+        for doc in old_docs:
+            try:
+                if doc.created_at:
+                    created_date = datetime.strptime(doc.created_at, "%Y-%m-%d %H:%M:%S")
+                    if created_date < thirty_days_ago:
+                        await session.delete(doc)
+                        deleted_count += 1
+            except Exception as e:
+                logging.error(f"Hujjatni o'chirishda xato: {e}")
+        
+        await session.commit()
+        logging.info(f"Muddati o'tgan {expired_count} ta hujjat is_active=False qilindi. {deleted_count} ta eski hujjat o'chirildi.")        

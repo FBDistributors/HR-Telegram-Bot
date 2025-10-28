@@ -43,6 +43,25 @@ class SuggestionForm(StatesGroup):
 # Hujjatlar bo'limi uchun holatlar
 class DocumentForm(StatesGroup):
     verification = State()  # Xodim ekanligini tekshirish
-    waiting_category = State()  # Kategoriya tanlash
-    waiting_document = State()  # Hujjat tanlash
-    waiting_format = State()  # Format tanlash (PDF/DOCX)
+    waiting_section = State()  # Bo'lim tanlash (namuna yoki ma'lumot)
+    # Namuna hujjatlar uchun
+    waiting_template_document = State()
+    waiting_language = State()
+    waiting_format = State()
+    # Ma'lumot hujjatlari uchun
+    waiting_info_document = State()
+
+# Admin: Hujjat qo'shish uchun holatlar
+class AddDocumentForm(StatesGroup):
+    waiting_doc_type = State()  # namuna yoki ma'lumot
+    waiting_template_name_uz = State()
+    waiting_template_name_ru = State()
+    waiting_template_uz_pdf = State()
+    waiting_template_uz_docx = State()
+    waiting_template_ru_pdf = State()
+    waiting_template_ru_docx = State()
+    # Ma'lumot hujjat uchun
+    waiting_info_name = State()
+    waiting_info_doc_type = State()  # Hisobot, Ariza...
+    waiting_info_expiry = State()
+    waiting_info_file = State()

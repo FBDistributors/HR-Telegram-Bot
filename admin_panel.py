@@ -4,16 +4,17 @@ import os
 import logging
 import io
 import docx
+import aiofiles
 from aiogram import Bot, Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     Message, ReplyKeyboardRemove,
-    InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+    InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, FSInputFile
 )
 
 import database as db
 from keyboards import texts, get_admin_main_keyboard
-from states import AdminForm, MainForm, KnowledgeBaseAdmin
+from states import AdminForm, MainForm, KnowledgeBaseAdmin, AddDocumentForm
 
 router = Router()
 ADMIN_ID = os.getenv("ADMIN_ID")
@@ -201,3 +202,271 @@ async def send_announcement_to_all(message: Message, state: FSMContext, bot: Bot
         reply_markup=get_admin_main_keyboard(lang)
     )
     await state.set_state(MainForm.main_menu)
+
+
+# --- HUJJAT QO'SHISH BO'LIMI ---
+
+@router.message(F.text.in_([texts['uz']['add_document_button'], texts['ru']['add_document_button']]))
+async def handle_add_document_button(message: Message, state: FSMContext):
+    """Hujjat qo'shish tugmasi bosilganda"""
+    if str(message.from_user.id) == ADMIN_ID:
+        lang = await get_user_lang(state)
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=texts[lang]['doc_type_template'], callback_data="add_doc_template")],
+            [InlineKeyboardButton(text=texts[lang]['doc_type_info'], callback_data="add_doc_info")],
+        ])
+        
+        await message.answer(texts[lang]['ask_doc_type'], reply_markup=keyboard)
+        await state.set_state(AddDocumentForm.waiting_doc_type)
+
+
+@router.callback_query(AddDocumentForm.waiting_doc_type)
+async def process_doc_type_choice(callback: CallbackQuery, state: FSMContext):
+    """Hujjat turi tanlandi"""
+    lang = await get_user_lang(state)
+    doc_type = callback.data.split('_')[2]  # template yoki info
+    
+    await state.update_data(doc_type=doc_type)
+    
+    if doc_type == 'template':
+        await callback.message.edit_text(texts[lang]['ask_template_name_uz'])
+        await state.set_state(AddDocumentForm.waiting_template_name_uz)
+    else:  # info
+        # Ma'lumot hujjatlarda nom va tur autogenerate qilamiz (standart)
+        # To'g'ridan-to'g'ri fayl yuklashga o'tamiz
+        await callback.message.edit_text(texts[lang]['ask_info_file'])
+        await state.set_state(AddDocumentForm.waiting_info_file)
+    
+    await callback.answer()
+
+
+# --- NAMUNA HUJJAT QO'SHISH ---
+
+@router.message(AddDocumentForm.waiting_template_name_uz, F.text)
+async def process_template_name_uz(message: Message, state: FSMContext):
+    """Namuna hujjat - o'zbekcha nom"""
+    lang = await get_user_lang(state)
+    await state.update_data(name_uz=message.text)
+    await message.answer(texts[lang]['ask_template_name_ru'])
+    await state.set_state(AddDocumentForm.waiting_template_name_ru)
+
+
+@router.message(AddDocumentForm.waiting_template_name_ru, F.text)
+async def process_template_name_ru(message: Message, state: FSMContext):
+    """Namuna hujjat - ruscha nom"""
+    lang = await get_user_lang(state)
+    await state.update_data(name_ru=message.text)
+    await message.answer(texts[lang]['ask_template_uz_pdf'])
+    await state.set_state(AddDocumentForm.waiting_template_uz_pdf)
+
+
+@router.message(AddDocumentForm.waiting_template_uz_pdf, F.document)
+async def process_template_uz_pdf(message: Message, state: FSMContext, bot: Bot):
+    """Namuna hujjat - o'zbekcha PDF"""
+    lang = await get_user_lang(state)
+    
+    if not message.document:
+        await message.answer(texts[lang]['doc_add_error'])
+        return
+    
+    # Faylni saqlash
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_bytes_io = await bot.download_file(file_info.file_path)
+    
+    # Faylni diskga saqlash
+    import os
+    os.makedirs('documents/templates', exist_ok=True)
+    file_path = f"documents/templates/{message.document.file_name}"
+    file_content = file_bytes_io.read()
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(file_content)
+    
+    await state.update_data(file_path_uz_pdf=file_path)
+    await message.answer(texts[lang]['ask_template_uz_docx'])
+    await state.set_state(AddDocumentForm.waiting_template_uz_docx)
+
+
+@router.message(AddDocumentForm.waiting_template_uz_docx, F.document)
+async def process_template_uz_docx(message: Message, state: FSMContext, bot: Bot):
+    """Namuna hujjat - o'zbekcha DOCX"""
+    lang = await get_user_lang(state)
+    
+    if not message.document:
+        await message.answer(texts[lang]['doc_add_error'])
+        return
+    
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_bytes_io = await bot.download_file(file_info.file_path)
+    
+    import os
+    os.makedirs('documents/templates', exist_ok=True)
+    file_path = f"documents/templates/{message.document.file_name}"
+    file_content = file_bytes_io.read()
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(file_content)
+    
+    await state.update_data(file_path_uz_docx=file_path)
+    await message.answer(texts[lang]['ask_template_ru_pdf'])
+    await state.set_state(AddDocumentForm.waiting_template_ru_pdf)
+
+
+@router.message(AddDocumentForm.waiting_template_ru_pdf, F.document)
+async def process_template_ru_pdf(message: Message, state: FSMContext, bot: Bot):
+    """Namuna hujjat - ruscha PDF"""
+    lang = await get_user_lang(state)
+    
+    if not message.document:
+        await message.answer(texts[lang]['doc_add_error'])
+        return
+    
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_bytes_io = await bot.download_file(file_info.file_path)
+    
+    import os
+    os.makedirs('documents/templates', exist_ok=True)
+    file_path = f"documents/templates/{message.document.file_name}"
+    file_content = file_bytes_io.read()
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(file_content)
+    
+    await state.update_data(file_path_ru_pdf=file_path)
+    await message.answer(texts[lang]['ask_template_ru_docx'])
+    await state.set_state(AddDocumentForm.waiting_template_ru_docx)
+
+
+@router.message(AddDocumentForm.waiting_template_ru_docx, F.document)
+async def process_template_ru_docx(message: Message, state: FSMContext, bot: Bot):
+    """Namuna hujjat - ruscha DOCX (oxirgi bosqich)"""
+    lang = await get_user_lang(state)
+    
+    if not message.document:
+        await message.answer(texts[lang]['doc_add_error'])
+        return
+    
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_bytes_io = await bot.download_file(file_info.file_path)
+    
+    import os
+    os.makedirs('documents/templates', exist_ok=True)
+    file_path = f"documents/templates/{message.document.file_name}"
+    file_content = file_bytes_io.read()
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(file_content)
+    
+    user_data = await state.get_data()
+    
+    try:
+        doc_id = await db.add_document(
+            name_uz=user_data['name_uz'],
+            name_ru=user_data['name_ru'],
+            is_template='true',
+            file_path_uz_pdf=user_data['file_path_uz_pdf'],
+            file_path_uz_docx=user_data['file_path_uz_docx'],
+            file_path_ru_pdf=user_data['file_path_ru_pdf'],
+            file_path_ru_docx=file_path,
+            uploaded_by=message.from_user.id
+        )
+        
+        await message.answer(texts[lang]['doc_added_success'], reply_markup=get_admin_main_keyboard(lang))
+        await state.set_state(MainForm.main_menu)
+        
+    except Exception as e:
+        logging.error(f"Hujjat qo'shishda xatolik: {e}")
+        await message.answer(texts[lang]['doc_add_error'])
+        await state.set_state(MainForm.main_menu)
+
+
+# --- MA'LUMOT HUJJATI QO'SHISH ---
+
+# Ma'lumot hujjatlarda nom va tur talab qilinmaydi
+# To'g'ridan-to'g'ri fayl yuklanadi va standart nom bilan saqlanadi
+
+
+@router.message(AddDocumentForm.waiting_info_file, F.document)
+async def process_info_file(message: Message, state: FSMContext, bot: Bot):
+    """Ma'lumot hujjati - fayl (oxirgi bosqich)"""
+    lang = await get_user_lang(state)
+    
+    if not message.document:
+        await message.answer(texts[lang]['doc_add_error'])
+        return
+    
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_bytes_io = await bot.download_file(file_info.file_path)
+    
+    import os
+    os.makedirs('documents/info', exist_ok=True)
+    # Fayl nomidan turli olish (masalan: Qarzdorlik.xlsx -> "Qarzdorlik")
+    file_name_without_ext = os.path.splitext(message.document.file_name)[0]
+    file_path = f"documents/info/{message.document.file_name}"
+    
+    # Yangi faylni saqlashdan avval, mavjud barcha ma'lumot hujjatlarni o'chiramiz
+    # Chunki ma'lumot hujjatlarda faqat bitta hujjat bo'ladi
+    try:
+        # Barcha ma'lumot hujjatlarini o'chiramiz
+        existing_file_paths = []
+        from sqlalchemy import select
+        from database import Document, async_session_maker
+        
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(Document).where(Document.is_template == 'false')
+            )
+            docs = result.scalars().all()
+            
+            for doc in docs:
+                if doc.file_path_single:
+                    existing_file_paths.append(doc.file_path_single)
+                await session.delete(doc)
+            
+            if docs:
+                await session.commit()
+                logging.info(f"Eski ma'lumot hujjatlar o'chirildi: {len(docs)} ta")
+        
+        # Diskdan ham o'chiramiz
+        for old_path in existing_file_paths:
+            try:
+                if old_path and os.path.exists(old_path):
+                    os.remove(old_path)
+            except Exception as e:
+                logging.warning(f"Eski faylni o'chirishda ogohlantirish: {e}")
+    except Exception as e:
+        logging.warning(f"Eski ma'lumot hujjatlarini o'chirishda ogohlantirish: {e}")
+
+    # Faylni to'g'ri o'qib diskka yozish
+    # file_bytes_io bytesIO obyekti, uni avval o'qiymiz
+    import aiofiles
+    file_content = file_bytes_io.read()
+    
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(file_content)
+    
+    try:
+        # Ma'lumot hujjat nomi fayl nomidan olinadi (standart)
+        # Fayl nomidan extensionsiz qismni olamiz
+        doc_name = file_name_without_ext
+        
+        await db.add_document(
+            name_uz=doc_name,
+            name_ru=doc_name,
+            category='General',
+            is_template='false',
+            file_path_single=file_path,
+            uploaded_by=message.from_user.id,
+            document_type='General',  # Standart tur
+            expires_at=None
+        )
+        
+        await message.answer(texts[lang]['doc_added_success'], reply_markup=get_admin_main_keyboard(lang))
+        await state.set_state(MainForm.main_menu)
+        
+    except Exception as e:
+        logging.error(f"Ma'lumot hujjat qo'shishda xatolik: {e}")
+        await message.answer(texts[lang]['doc_add_error'])
+        await state.set_state(MainForm.main_menu)

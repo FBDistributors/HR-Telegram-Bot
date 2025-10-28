@@ -17,6 +17,21 @@ if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
 
+async def cleanup_expired_documents():
+    """
+    Har kun bir marta ishga tushib, muddati o'tgan hujjatlarni tozalaydi.
+    """
+    while True:
+        await asyncio.sleep(86400) # 24 soat kutish (86400 sekund)
+        logging.info("Muddati o'tgan hujjatlarni tozalash boshlandi...")
+        
+        try:
+            await db.delete_expired_documents()
+            logging.info("Muddati o'tgan hujjatlarni tozalash muvaffaqiyatli yakunlandi.")
+        except Exception as e:
+            logging.error(f"Muddati o'tgan hujjatlarni tozalashda xatolik: {e}")
+
+
 async def check_unanswered_questions(bot: Bot):
     """
     Har soatda bir marta ishga tushib, javobsiz savollarni tekshiradi

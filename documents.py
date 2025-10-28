@@ -1,4 +1,4 @@
-# documents.py fayli (Hujjatlar bo'limi)
+# documents.py fayli (Hujjatlar bo'limi - Yangilangan)
 
 import os
 import logging
@@ -8,6 +8,8 @@ from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, FSInputFile
 )
+from sqlalchemy import select
+from database import User, async_session_maker
 
 from states import MainForm, DocumentForm
 from keyboards import texts, get_user_keyboard, get_admin_main_keyboard
@@ -34,8 +36,8 @@ async def handle_documents_button(message: Message, state: FSMContext):
     
     # Xodim ekanligini tekshirish
     if await db.is_employee_by_tg_id(user_id):
-        # Agar tasdiqlangan xodim bo'lsa, kategoriyalarni ko'rsatamiz
-        await show_categories(message, state)
+        # Agar tasdiqlangan xodim bo'lsa, bo'limlarni ko'rsatamiz
+        await show_sections(message, state)
     else:
         # Agar tasdiqlanmagan bo'lsa, telefon raqam so'raymiz
         await handle_documents_verification(message, state)
@@ -80,7 +82,7 @@ async def process_documents_verification(message: Message, state: FSMContext):
     if is_authorized:
         logging.info(f"Xodim {user_phone_number} hujjatlar bo'limiga kirdi.")
         await message.answer(texts[lang]['documents_welcome'], reply_markup=ReplyKeyboardRemove())
-        await show_categories(message, state)
+        await show_sections(message, state)
     else:
         logging.warning(f"Ruxsatsiz urinish (xodim emas): {user_phone_number}")
         await message.answer(texts[lang]['documents_auth_fail'], reply_markup=keyboard)
@@ -94,45 +96,37 @@ async def process_documents_verification_invalid(message: Message, state: FSMCon
     await message.reply(texts[lang]['documents_auth_prompt'])
 
 
-async def show_categories(message: Message | CallbackQuery, state: FSMContext):
-    """Kategoriyalar menyusini ko'rsatish"""
+async def show_sections(message: Message | CallbackQuery, state: FSMContext):
+    """2 bo'limni ko'rsatish: Namuna va Ma'lumot"""
     lang = await get_user_lang(state)
     
-    # Kategoriyalar inline keyboard
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=texts[lang]['category_ariza'], callback_data="doc_category_ariza"),
-        ],
-        [
-            InlineKeyboardButton(text=texts[lang]['category_kompaniya'], callback_data="doc_category_kompaniya"),
-        ]
+        [InlineKeyboardButton(text=texts[lang]['section_templates'], callback_data="doc_section_templates")],
+        [InlineKeyboardButton(text=texts[lang]['section_info'], callback_data="doc_section_info")]
     ])
     
     if isinstance(message, CallbackQuery):
-        await message.message.edit_text(texts[lang]['documents_welcome'], reply_markup=keyboard)
+        await message.message.edit_text(texts[lang]['documents_sections'], reply_markup=keyboard)
     else:
-        await message.answer(texts[lang]['documents_welcome'], reply_markup=keyboard)
+        await message.answer(texts[lang]['documents_sections'], reply_markup=keyboard)
     
-    await state.set_state(DocumentForm.waiting_category)
+    await state.set_state(DocumentForm.waiting_section)
 
 
-@router.callback_query(DocumentForm.waiting_category, F.data.startswith('doc_category_'))
-async def process_category_selection(callback: CallbackQuery, state: FSMContext):
-    """Kategoriya tanlanganda"""
-    category = callback.data.split('_')[2]  # ariza yoki kompaniya
+# --- NAMUNA HUJJATLAR ---
+
+@router.callback_query(DocumentForm.waiting_section, F.data == "doc_section_templates")
+async def show_template_documents(callback: CallbackQuery, state: FSMContext):
+    """Namuna hujjatlarni ko'rsatish"""
     lang = await get_user_lang(state)
     
-    # Kategoriyani state'ga saqlab qo'yamiz
-    await state.update_data(document_category=category)
-    
-    # Kategoriya ichidagi hujjatlarni ko'rsatamiz
-    documents = await db.get_documents_by_category(category, lang)
+    documents = await db.get_template_documents(lang)
     
     if not documents:
         await callback.message.edit_text(
-            f"❌ {texts[lang]['category_ariza'] if category == 'ariza' else texts[lang]['category_kompaniya']} bo'limida hujjat topilmadi.",
+            "❌ Hozircha namuna hujjatlar mavjud emas.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=texts[lang]['back_to_categories'], callback_data="doc_back_categories")]
+                [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
             ])
         )
         return
@@ -140,57 +134,67 @@ async def process_category_selection(callback: CallbackQuery, state: FSMContext)
     # Hujjatlar ro'yxatini tugmalar ko'rinishida tayyorlaymiz
     keyboard_buttons = []
     for doc in documents:
-        # Har bir hujjat uchun tugma
         keyboard_buttons.append([
-            InlineKeyboardButton(text=doc['name'], callback_data=f"doc_select_{doc['id']}")
+            InlineKeyboardButton(text=doc['name'], callback_data=f"doc_template_{doc['id']}")
         ])
     
-    # Orqaga tugmasi
     keyboard_buttons.append([
-        InlineKeyboardButton(text=texts[lang]['back_to_categories'], callback_data="doc_back_categories")
+        InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
-    category_name = texts[lang]['category_ariza'] if category == 'ariza' else texts[lang]['category_kompaniya']
     await callback.message.edit_text(
-        f"{category_name}\n\nKerakli hujjatni tanlang:",
+        "📝 Namuna hujjatlar:\n\nKerakli hujjatni tanlang:",
         reply_markup=keyboard
     )
-    await state.set_state(DocumentForm.waiting_document)
+    await state.set_state(DocumentForm.waiting_template_document)
     await callback.answer()
 
 
-@router.callback_query(DocumentForm.waiting_document, F.data.startswith('doc_select_'))
-async def process_document_selection(callback: CallbackQuery, state: FSMContext):
-    """Hujjat tanlanganda formatni so'rash"""
+@router.callback_query(DocumentForm.waiting_template_document, F.data.startswith('doc_template_'))
+async def select_template_language(callback: CallbackQuery, state: FSMContext):
+    """Namuna hujjat tanlanganda tilni so'rash"""
     doc_id = int(callback.data.split('_')[2])
     lang = await get_user_lang(state)
     
-    # Hujjat ma'lumotlarini olamiz
-    document = await db.get_document_by_id(doc_id)
+    await state.update_data(template_doc_id=doc_id)
     
-    if not document:
-        await callback.answer("Hujjat topilmadi.", show_alert=True)
-        return
-    
-    # Hujjat ma'lumotlarini state'ga saqlaymiz
-    await state.update_data(document_id=doc_id)
-    
-    # Format tanlash keyboard
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=texts[lang]['format_pdf'], callback_data=f"doc_format_{doc_id}_pdf"),
-            InlineKeyboardButton(text=texts[lang]['format_docx'], callback_data=f"doc_format_{doc_id}_docx")
-        ],
-        [InlineKeyboardButton(text=texts[lang]['back_to_categories'], callback_data="doc_back_documents")]
+        [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data=f"doc_lang_{doc_id}_uz")],
+        [InlineKeyboardButton(text="🇷🇺 Русский", callback_data=f"doc_lang_{doc_id}_ru")],
+        [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
     ])
     
-    # Hujjat nomini lang bo'yicha tanlaymiz
-    doc_name = document.name_uz if lang == 'uz' else document.name_ru
+    doc = await db.get_document_by_id(doc_id)
+    doc_name = doc.name_uz if lang == 'uz' else doc.name_ru
     
     await callback.message.edit_text(
-        f"📄 {doc_name}\n\n{texts[lang]['choose_format']}",
+        f"📄 {doc_name}\n\n{texts[lang]['select_language']}",
+        reply_markup=keyboard
+    )
+    await state.set_state(DocumentForm.waiting_language)
+    await callback.answer()
+
+
+@router.callback_query(DocumentForm.waiting_language, F.data.startswith('doc_lang_'))
+async def select_template_format(callback: CallbackQuery, state: FSMContext):
+    """Til tanlanganda formatni so'rash"""
+    parts = callback.data.split('_')
+    doc_id = int(parts[2])
+    selected_lang = parts[3]
+    
+    lang = await get_user_lang(state)
+    
+    await state.update_data(template_lang=selected_lang)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=texts[lang]['format_pdf'], callback_data=f"doc_format_{doc_id}_pdf")],
+        [InlineKeyboardButton(text=texts[lang]['format_docx'], callback_data=f"doc_format_{doc_id}_docx")],
+        [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
+    ])
+    
+    await callback.message.edit_text(
+        f"📄 {texts[lang]['choose_format']}",
         reply_markup=keyboard
     )
     await state.set_state(DocumentForm.waiting_format)
@@ -198,29 +202,30 @@ async def process_document_selection(callback: CallbackQuery, state: FSMContext)
 
 
 @router.callback_query(DocumentForm.waiting_format, F.data.startswith('doc_format_'))
-async def process_format_selection(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    """Format tanlanganda faylni yuborish"""
+async def send_template_file(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    """Format tanlanganda faylni yuborish (Namuna hujjatlar)"""
     lang = await get_user_lang(state)
     
-    # Callback_data format: doc_format_{doc_id}_{format}
     parts = callback.data.split('_')
     doc_id = int(parts[2])
-    format_type = parts[3]  # pdf yoki docx
+    format_type = parts[3]
     
-    # Hujjat ma'lumotlarini olamiz
+    user_data = await state.get_data()
+    selected_lang = user_data.get('template_lang', lang)
+    
     document = await db.get_document_by_id(doc_id)
     
     if not document:
         await callback.answer("Hujjat topilmadi.", show_alert=True)
         return
     
-    # Fayl yo'lini format va til bo'yicha tanlaymiz
+    # Fayl yo'lini format va tanlangan til bo'yicha tanlaymiz
     if format_type == 'pdf':
-        file_path = document.file_path_uz_pdf if lang == 'uz' else document.file_path_ru_pdf
-        file_name = f"{document.name_uz if lang == 'uz' else document.name_ru}.pdf"
+        file_path = document.file_path_uz_pdf if selected_lang == 'uz' else document.file_path_ru_pdf
+        file_name = f"{document.name_uz if selected_lang == 'uz' else document.name_ru}.pdf"
     else:  # docx
-        file_path = document.file_path_uz_docx if lang == 'uz' else document.file_path_ru_docx
-        file_name = f"{document.name_uz if lang == 'uz' else document.name_ru}.docx"
+        file_path = document.file_path_uz_docx if selected_lang == 'uz' else document.file_path_ru_docx
+        file_name = f"{document.name_uz if selected_lang == 'uz' else document.name_ru}.docx"
     
     if not file_path:
         await callback.answer("Bu format mavjud emas.", show_alert=True)
@@ -230,33 +235,129 @@ async def process_format_selection(callback: CallbackQuery, state: FSMContext, b
     try:
         file = FSInputFile(file_path, filename=file_name)
         await bot.send_document(chat_id=callback.from_user.id, document=file)
-        logging.info(f"Foydalanuvchi {callback.from_user.id} ga hujjat yuborildi: {file_name}")
+        logging.info(f"Namuna hujjat yuborildi: {file_name}")
         
-        # Asosiy menyuga qaytish tugmasi
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=texts[lang]['back_to_categories'], callback_data="doc_back_categories")]
+            [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
         ])
-        await callback.message.edit_text(
-            "✅ Hujjat yuborildi.",
-            reply_markup=keyboard
-        )
+        await callback.message.edit_text("✅ Hujjat yuborildi.", reply_markup=keyboard)
         
     except Exception as e:
         logging.error(f"Faylni yuborishda xatolik: {e}")
-        await callback.answer("Faylni yuborishda xatolik yuz berdi.", show_alert=True)
+        await callback.answer("Faylni yuborishda xatolik.", show_alert=True)
     
     await callback.answer()
 
 
-@router.callback_query(F.data.in_(['doc_back_categories', 'doc_back_documents']))
-async def process_back_button(callback: CallbackQuery, state: FSMContext):
-    """Orqaga tugmasi bosilganda"""
-    if callback.data == 'doc_back_categories':
-        # Kategoriyalarga qaytish
-        await show_categories(callback, state)
-    else:
-        # Kategoriya ichidagi hujjatlarga qaytish (fallback)
-        await show_categories(callback, state)
+# --- MA'LUMOT HUJJATLARI ---
+
+@router.callback_query(DocumentForm.waiting_section, F.data == "doc_section_info")
+async def show_info_documents(callback: CallbackQuery, state: FSMContext):
+    """Ma'lumot hujjatlarni ko'rsatish"""
+    lang = await get_user_lang(state)
+    
+    documents = await db.get_info_documents(lang)
+    
+    if not documents:
+        await callback.message.edit_text(
+            "❌ Hozircha ma'lumot hujjatlari mavjud emas.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
+            ])
+        )
+        return
+    
+    # Hujjatlar ro'yxatini tugmalar ko'rinishida tayyorlaymiz
+    keyboard_buttons = []
+    for doc in documents:
+        # Ma'lumotlarni formatlaymiz
+        doc_info = doc['name']
+        if doc.get('document_type'):
+            type_emoji = {
+                'Hisobot': '📊',
+                'Ariza': '📝',
+                'Ko\'rsatma': '📋',
+                'Umumiy': '📁'
+            }.get(doc['document_type'], '📄')
+            doc_info = f"{type_emoji} {doc['name']}"
+        
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=doc_info, callback_data=f"doc_info_{doc['id']}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    await callback.message.edit_text(
+        "📄 Ma'lumot hujjatlari:\n\nKerakli hujjatni tanlang:",
+        reply_markup=keyboard
+    )
+    await state.set_state(DocumentForm.waiting_info_document)
+    await callback.answer()
+
+
+@router.callback_query(DocumentForm.waiting_info_document, F.data.startswith('doc_info_'))
+async def send_info_file(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    """Ma'lumot hujjat tanlanganda to'g'ridan-to'g'ri yuborish"""
+    lang = await get_user_lang(state)
+    
+    doc_id = int(callback.data.split('_')[2])
+    
+    documents = await db.get_info_documents(lang)
+    doc = None
+    for d in documents:
+        if d['id'] == doc_id:
+            doc = d
+            break
+    
+    if not doc or not doc.get('file_path'):
+        await callback.answer("Hujjat topilmadi.", show_alert=True)
+        return
+    
+    # Faylni yuborish
+    try:
+        # Fayl nomini formatalash
+        file_name = os.path.basename(doc['file_path'])
+        file = FSInputFile(doc['file_path'], filename=file_name)
+        await bot.send_document(chat_id=callback.from_user.id, document=file)
+        
+        # Qo'shimcha ma'lumot (agar mavjud bo'lsa)
+        info_text = f"📄 {doc['name']}"
+        
+        # Kim yuklagan va qachon
+        if doc.get('uploaded_by'):
+            async with async_session_maker() as session:
+                result = await session.execute(select(User).filter(User.user_id == doc['uploaded_by']))
+                user = result.scalars().first()
+                if user:
+                    info_text += f"\n{texts[lang]['uploaded_by'].format(name=user.full_name)}"
+        
+        if doc.get('created_at'):
+            info_text += f"\n{texts[lang]['uploaded_at'].format(date=doc['created_at'])}"
+        
+        if doc.get('document_type'):
+            info_text += f"\n{texts[lang]['doc_type'].format(type=doc['document_type'])}"
+        
+        await bot.send_message(chat_id=callback.from_user.id, text=info_text)
+        
+        logging.info(f"Ma'lumot hujjati yuborildi: {file_name}")
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
+        ])
+        await callback.message.edit_text("✅ Hujjat yuborildi.", reply_markup=keyboard)
+        
+    except Exception as e:
+        logging.error(f"Faylni yuborishda xatolik: {e}")
+        await callback.answer("Faylni yuborishda xatolik.", show_alert=True)
     
     await callback.answer()
 
+
+@router.callback_query(F.data == "doc_back_sections")
+async def process_back_to_sections(callback: CallbackQuery, state: FSMContext):
+    """Bo'limlarga qaytish"""
+    await show_sections(callback, state)
+    await callback.answer()
