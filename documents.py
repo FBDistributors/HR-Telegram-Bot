@@ -337,9 +337,29 @@ async def send_debt_file(callback: CallbackQuery, state: FSMContext, bot: Bot):
         file = FSInputFile(file_path)
         doc_name = doc.name_uz if lang == 'uz' else doc.name_ru or doc.name_uz
         
+        # Hujjatni yuborish
         await callback.message.answer_document(
             file,
             caption=f"💰 {doc_name}",
+        )
+        
+        # Qo'shimcha ma'lumot (kim yuklagan va qachon)
+        info_text = f"📄 {doc_name}"
+        
+        # Kim yuklagan va qachon
+        if doc.uploaded_by:
+            async with async_session_maker() as session:
+                result = await session.execute(select(User).filter(User.user_id == doc.uploaded_by))
+                user = result.scalars().first()
+                if user:
+                    info_text += f"\n{texts[lang]['uploaded_by'].format(name=user.full_name)}"
+        
+        if doc.created_at:
+            info_text += f"\n{texts[lang]['uploaded_at'].format(date=doc.created_at)}"
+        
+        await bot.send_message(
+            chat_id=callback.from_user.id, 
+            text=info_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
             ])
