@@ -251,37 +251,49 @@ async def send_template_file(callback: CallbackQuery, state: FSMContext, bot: Bo
 # --- MA'LUMOT HUJJATLARI ---
 
 @router.callback_query(DocumentForm.waiting_section, F.data == "doc_section_info")
-async def show_info_documents(callback: CallbackQuery, state: FSMContext):
-    """Ma'lumot hujjatlarni ko'rsatish"""
+async def show_info_categories(callback: CallbackQuery, state: FSMContext):
+    """Ma'lumot hujjatlari kategoriyalarini ko'rsatish"""
     lang = await get_user_lang(state)
     
-    documents = await db.get_info_documents(lang)
+    # Hozircha faqat Qarzdorlik kategoriyasi mavjud
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=texts[lang]['info_category_debt'], callback_data="info_cat_debt")],
+        [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
+    ])
+    
+    await callback.message.edit_text(
+        texts[lang]['documents_sections'],
+        reply_markup=keyboard
+    )
+    await state.set_state(DocumentForm.waiting_info_category)
+    await callback.answer()
+
+
+@router.callback_query(DocumentForm.waiting_info_category, F.data == "info_cat_debt")
+async def show_debt_documents(callback: CallbackQuery, state: FSMContext):
+    """Qarzdorlik hujjatlarini ko'rsatish"""
+    lang = await get_user_lang(state)
+    
+    documents = await db.get_debt_documents()
     
     if not documents:
         await callback.message.edit_text(
-            "❌ Hozircha ma'lumot hujjatlari mavjud emas.",
+            texts[lang]['no_debt_documents'],
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
             ])
         )
+        await callback.answer()
         return
     
-    # Hujjatlar ro'yxatini tugmalar ko'rinishida tayyorlaymiz
+    # Qarzdorlik hujjatlari ro'yxatini tugmalar ko'rinishida tayyorlaymiz
     keyboard_buttons = []
     for doc in documents:
-        # Ma'lumotlarni formatlaymiz
-        doc_info = doc['name']
-        if doc.get('document_type'):
-            type_emoji = {
-                'Hisobot': '📊',
-                'Ariza': '📝',
-                'Ko\'rsatma': '📋',
-                'Umumiy': '📁'
-            }.get(doc['document_type'], '📄')
-            doc_info = f"{type_emoji} {doc['name']}"
+        # Hujjat nomini formatlash
+        doc_info = f"💰 {doc.name_uz if lang == 'uz' else doc.name_ru or doc.name_uz}"
         
         keyboard_buttons.append([
-            InlineKeyboardButton(text=doc_info, callback_data=f"doc_info_{doc['id']}")
+            InlineKeyboardButton(text=doc_info, callback_data=f"debt_doc_{doc.id}")
         ])
     
     keyboard_buttons.append([
@@ -290,11 +302,55 @@ async def show_info_documents(callback: CallbackQuery, state: FSMContext):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     await callback.message.edit_text(
-        "📄 Ma'lumot hujjatlari:\n\nKerakli hujjatni tanlang:",
+        texts[lang]['debt_documents'],
         reply_markup=keyboard
     )
-    await state.set_state(DocumentForm.waiting_info_document)
+    await state.set_state(DocumentForm.waiting_debt_document)
     await callback.answer()
+
+
+@router.callback_query(DocumentForm.waiting_debt_document, F.data.startswith('debt_doc_'))
+async def send_debt_file(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    """Qarzdorlik hujjat tanlanganda to'g'ridan-to'g'ri yuborish"""
+    lang = await get_user_lang(state)
+    
+    doc_id = int(callback.data.split('_')[2])
+    
+    documents = await db.get_debt_documents()
+    doc = None
+    for d in documents:
+        if d.id == doc_id:
+            doc = d
+            break
+    
+    if not doc or not doc.file_path_single:
+        await callback.answer("Hujjat topilmadi.", show_alert=True)
+        return
+    
+    # Faylni yuborish
+    try:
+        file_path = doc.file_path_single
+        if not os.path.exists(file_path):
+            await callback.answer("Fayl topilmadi.", show_alert=True)
+            return
+        
+        file = FSInputFile(file_path)
+        doc_name = doc.name_uz if lang == 'uz' else doc.name_ru or doc.name_uz
+        
+        await callback.message.answer_document(
+            file,
+            caption=f"💰 {doc_name}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data="doc_back_sections")]
+            ])
+        )
+        
+        await callback.message.delete()
+        await state.set_state(DocumentForm.waiting_section)
+        
+    except Exception as e:
+        logging.error(f"Qarzdorlik hujjat yuborishda xatolik: {e}")
+        await callback.answer("Faylni yuborishda xatolik yuz berdi.", show_alert=True)
 
 
 @router.callback_query(DocumentForm.waiting_info_document, F.data.startswith('doc_info_'))

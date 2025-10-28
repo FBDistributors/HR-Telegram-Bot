@@ -232,11 +232,32 @@ async def process_doc_type_choice(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(texts[lang]['ask_template_name_uz'])
         await state.set_state(AddDocumentForm.waiting_template_name_uz)
     else:  # info
-        # Ma'lumot hujjatlarda nom va tur autogenerate qilamiz (standart)
-        # To'g'ridan-to'g'ri fayl yuklashga o'tamiz
-        await callback.message.edit_text(texts[lang]['ask_info_file'])
-        await state.set_state(AddDocumentForm.waiting_info_file)
+        # Ma'lumot hujjat uchun avval kategoriya tanlash
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=texts[lang]['info_category_debt'], callback_data="info_category_debt")],
+        ])
+        await callback.message.edit_text(texts[lang]['ask_info_category'], reply_markup=keyboard)
+        await state.set_state(AddDocumentForm.waiting_info_category)
     
+    await callback.answer()
+
+
+@router.callback_query(AddDocumentForm.waiting_info_category)
+async def process_info_category_choice(callback: CallbackQuery, state: FSMContext):
+    """Ma'lumot hujjat kategoriyasi tanlandi"""
+    lang = await get_user_lang(state)
+    
+    # Kategoriya ma'lumotini saqlash
+    if callback.data == "info_category_debt":
+        category = "Qarzdorlik"
+    else:
+        category = "Umumiy"  # Default
+    
+    await state.update_data(info_category=category)
+    
+    # Endi fayl yuklashga o'tish
+    await callback.message.edit_text(texts[lang]['ask_info_file'])
+    await state.set_state(AddDocumentForm.waiting_info_file)
     await callback.answer()
 
 
@@ -405,17 +426,22 @@ async def process_info_file(message: Message, state: FSMContext, bot: Bot):
     file_name_without_ext = os.path.splitext(message.document.file_name)[0]
     file_path = f"documents/info/{message.document.file_name}"
     
-    # Yangi faylni saqlashdan avval, mavjud barcha ma'lumot hujjatlarni o'chiramiz
-    # Chunki ma'lumot hujjatlarda faqat bitta hujjat bo'ladi
+    # Tanlangan kategoriyani olish
+    user_data = await state.get_data()
+    selected_category = user_data.get('info_category', 'Umumiy')
+    
+    # Yangi faylni saqlashdan avval, bir xil kategoriadagi mavjud hujjatlarni o'chiramiz
     try:
-        # Barcha ma'lumot hujjatlarini o'chiramiz
         existing_file_paths = []
         from sqlalchemy import select
         from database import Document, async_session_maker
         
         async with async_session_maker() as session:
             result = await session.execute(
-                select(Document).where(Document.is_template == 'false')
+                select(Document).where(
+                    Document.is_template == 'false',
+                    Document.category == selected_category
+                )
             )
             docs = result.scalars().all()
             
@@ -426,7 +452,7 @@ async def process_info_file(message: Message, state: FSMContext, bot: Bot):
             
             if docs:
                 await session.commit()
-                logging.info(f"Eski ma'lumot hujjatlar o'chirildi: {len(docs)} ta")
+                logging.info(f"Eski {selected_category} kategoriyasi hujjatlari o'chirildi: {len(docs)} ta")
         
         # Diskdan ham o'chiramiz
         for old_path in existing_file_paths:
@@ -451,14 +477,16 @@ async def process_info_file(message: Message, state: FSMContext, bot: Bot):
         # Fayl nomidan extensionsiz qismni olamiz
         doc_name = file_name_without_ext
         
+        # Tanlangan kategoriyani yuqorida olingan
+        
         await db.add_document(
             name_uz=doc_name,
             name_ru=doc_name,
-            category='General',
+            category=selected_category,  # Tanlangan kategoriya
             is_template='false',
             file_path_single=file_path,
             uploaded_by=message.from_user.id,
-            document_type='General',  # Standart tur
+            document_type=selected_category,  # Tanlangan tur
             expires_at=None
         )
         

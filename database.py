@@ -663,4 +663,18 @@ async def delete_expired_documents():
                 logging.error(f"Hujjatni o'chirishda xato: {e}")
         
         await session.commit()
-        logging.info(f"Muddati o'tgan {expired_count} ta hujjat is_active=False qilindi. {deleted_count} ta eski hujjat o'chirildi.")        
+        logging.info(f"Muddati o'tgan {expired_count} ta hujjat is_active=False qilindi. {deleted_count} ta eski hujjat o'chirildi.")
+
+
+async def get_debt_documents():
+    """Qarzdorlik kategoriyasiga tegishli ma'lumot hujjatlarini olish."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Document).where(
+                Document.is_template == 'false',
+                Document.category == 'Qarzdorlik',
+                Document.is_active == 'true'
+            )
+        )
+        documents = result.scalars().all()
+        return documents        

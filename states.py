@@ -49,7 +49,9 @@ class DocumentForm(StatesGroup):
     waiting_language = State()
     waiting_format = State()
     # Ma'lumot hujjatlari uchun
+    waiting_info_category = State()  # Kategoriya tanlash (qarzdorlik, ...)
     waiting_info_document = State()
+    waiting_debt_document = State()  # Qarzdorlik hujjatlar ro'yxati
 
 # Admin: Hujjat qo'shish uchun holatlar
 class AddDocumentForm(StatesGroup):
@@ -61,6 +63,7 @@ class AddDocumentForm(StatesGroup):
     waiting_template_ru_pdf = State()
     waiting_template_ru_docx = State()
     # Ma'lumot hujjat uchun
+    waiting_info_category = State()  # Kategoriya tanlash (Qarzdorlik, ...)
     waiting_info_name = State()
     waiting_info_doc_type = State()  # Hisobot, Ariza...
     waiting_info_expiry = State()
