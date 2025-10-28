@@ -60,31 +60,45 @@ async def process_documents_verification(message: Message, state: FSMContext):
     lang = await get_user_lang(state)
     user_phone_number = message.contact.phone_number
 
-    # Foydalanuvchini bazaga qo'shamiz (agar mavjud bo'lmasa)
-    await db.add_user(
-        user_id=message.from_user.id,
-        full_name=message.from_user.full_name,
-        username=message.from_user.username
-    )
-    
-    # Raqamni saqlaymiz
-    await db.update_user_phone_number(message.from_user.id, user_phone_number)
+    try:
+        # Telefon raqam formatini tekshirish
+        if not user_phone_number or len(user_phone_number.replace('+', '').replace(' ', '').replace('-', '')) < 7:
+            await message.answer("❌ Telefon raqam noto'g'ri formatda. Iltimos, qaytadan urinib ko'ring.", 
+                               reply_markup=get_user_keyboard(lang))
+            await state.set_state(MainForm.main_menu)
+            return
 
-    # Xodim ekanligini tekshiramiz
-    is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
-    
-    if await db.is_admin(message.from_user.id):
-        keyboard = get_admin_main_keyboard(lang)
-    else:
-        keyboard = get_user_keyboard(lang)
+        # Foydalanuvchini bazaga qo'shamiz (agar mavjud bo'lmasa)
+        await db.add_user(
+            user_id=message.from_user.id,
+            full_name=message.from_user.full_name,
+            username=message.from_user.username
+        )
+        
+        # Raqamni saqlaymiz
+        await db.update_user_phone_number(message.from_user.id, user_phone_number)
 
-    if is_authorized:
-        logging.info(f"Xodim {user_phone_number} hujjatlar bo'limiga kirdi.")
-        await message.answer(texts[lang]['documents_welcome'], reply_markup=ReplyKeyboardRemove())
-        await show_sections(message, state)
-    else:
-        logging.warning(f"Ruxsatsiz urinish (xodim emas): {user_phone_number}")
-        await message.answer(texts[lang]['documents_auth_fail'], reply_markup=keyboard)
+        # Xodim ekanligini tekshiramiz
+        is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
+        
+        if await db.is_admin(message.from_user.id):
+            keyboard = get_admin_main_keyboard(lang)
+        else:
+            keyboard = get_user_keyboard(lang)
+
+        if is_authorized:
+            logging.info(f"Xodim {user_phone_number} hujjatlar bo'limiga kirdi.")
+            await message.answer(texts[lang]['documents_welcome'], reply_markup=ReplyKeyboardRemove())
+            await show_sections(message, state)
+        else:
+            logging.warning(f"Ruxsatsiz urinish (xodim emas): {user_phone_number}")
+            await message.answer(texts[lang]['documents_auth_fail'], reply_markup=keyboard)
+            await state.set_state(MainForm.main_menu)
+            
+    except Exception as e:
+        logging.error(f"Documents verification xatoligi: {e}")
+        await message.answer("❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring.", 
+                           reply_markup=get_user_keyboard(lang))
         await state.set_state(MainForm.main_menu)
 
 

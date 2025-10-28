@@ -45,36 +45,50 @@ async def process_faq_verification(message: types.Message, state: FSMContext):
     lang = await get_user_lang(state)
     user_phone_number = message.contact.phone_number
 
-    # --- YANGI QO'SHILGAN BLOK ---
-    # Har ehtimolga qarshi, foydalanuvchi mavjudligini tekshiramiz.
-    # Agar u bazada bo'lmasa, shu yerda qo'shib qo'yamiz.
-    # db.add_user funksiyasi agar foydalanuvchi mavjud bo'lsa, xato bermaydi, shunchaki o'tib ketadi.
-    await db.add_user(
-        user_id=message.from_user.id,
-        full_name=message.from_user.full_name,
-        username=message.from_user.username
-    )
-    # --- YANGI BLOK TUGADI ---
+    try:
+        # Telefon raqam formatini tekshirish
+        if not user_phone_number or len(user_phone_number.replace('+', '').replace(' ', '').replace('-', '')) < 7:
+            await message.answer("❌ Telefon raqam noto'g'ri formatda. Iltimos, qaytadan urinib ko'ring.", 
+                               reply_markup=get_user_keyboard(lang))
+            await state.set_state(MainForm.main_menu)
+            return
 
-    # Endi raqamni saqlaymiz (foydalanuvchi bazada borligi kafolatlangan)
-    await db.update_user_phone_number(message.from_user.id, user_phone_number)
+        # --- YANGI QO'SHILGAN BLOK ---
+        # Har ehtimolga qarshi, foydalanuvchi mavjudligini tekshiramiz.
+        # Agar u bazada bo'lmasa, shu yerda qo'shib qo'yamiz.
+        # db.add_user funksiyasi agar foydalanuvchi mavjud bo'lsa, xato bermaydi, shunchaki o'tib ketadi.
+        await db.add_user(
+            user_id=message.from_user.id,
+            full_name=message.from_user.full_name,
+            username=message.from_user.username
+        )
+        # --- YANGI BLOK TUGADI ---
 
-    is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
-    
-    await state.update_data(language=lang)
+        # Endi raqamni saqlaymiz (foydalanuvchi bazada borligi kafolatlangan)
+        await db.update_user_phone_number(message.from_user.id, user_phone_number)
 
-    if await db.is_admin(message.from_user.id):
-        keyboard = get_admin_main_keyboard(lang)
-    else:
-        keyboard = get_user_keyboard(lang)
+        is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
+        
+        await state.update_data(language=lang)
 
-    if is_authorized:
-        logging.info(f"Xodim {user_phone_number} FAQ bo'limiga kirdi.")
-        await message.answer(texts[lang]['faq_welcome'], reply_markup=keyboard)
-        await state.set_state(FaqForm.in_process)
-    else:
-        logging.warning(f"Ruxsatsiz urinish (xodim emas): {user_phone_number}")
-        await message.answer(texts[lang]['faq_auth_fail'], reply_markup=keyboard)
+        if await db.is_admin(message.from_user.id):
+            keyboard = get_admin_main_keyboard(lang)
+        else:
+            keyboard = get_user_keyboard(lang)
+
+        if is_authorized:
+            logging.info(f"Xodim {user_phone_number} FAQ bo'limiga kirdi.")
+            await message.answer(texts[lang]['faq_welcome'], reply_markup=keyboard)
+            await state.set_state(FaqForm.in_process)
+        else:
+            logging.warning(f"Ruxsatsiz urinish (xodim emas): {user_phone_number}")
+            await message.answer(texts[lang]['faq_auth_fail'], reply_markup=keyboard)
+            await state.set_state(MainForm.main_menu)
+            
+    except Exception as e:
+        logging.error(f"FAQ verification xatoligi: {e}")
+        await message.answer("❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring.", 
+                           reply_markup=get_user_keyboard(lang))
         await state.set_state(MainForm.main_menu)
 
 @router.message(FaqForm.verification)
