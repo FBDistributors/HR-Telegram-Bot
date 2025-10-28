@@ -17,7 +17,6 @@ from keyboards import texts, get_admin_main_keyboard
 from states import AdminForm, MainForm, KnowledgeBaseAdmin, AddDocumentForm
 
 router = Router()
-ADMIN_ID = os.getenv("ADMIN_ID")
 
 async def get_user_lang(state: FSMContext):
     user_data = await state.get_data()
@@ -169,7 +168,7 @@ async def process_kb_lang_choice(callback: CallbackQuery, state: FSMContext):
 
 @router.message(F.text.in_([texts['uz']['broadcast_button'], texts['ru']['broadcast_button']]))
 async def handle_broadcast_button(message: Message, state: FSMContext):
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         lang = await get_user_lang(state)
         await message.answer(texts[lang]['ask_announcement'], reply_markup=ReplyKeyboardRemove())
         await state.set_state(AdminForm.waiting_for_announcement)
@@ -209,7 +208,7 @@ async def send_announcement_to_all(message: Message, state: FSMContext, bot: Bot
 @router.message(F.text.in_([texts['uz']['add_document_button'], texts['ru']['add_document_button']]))
 async def handle_add_document_button(message: Message, state: FSMContext):
     """Hujjat qo'shish tugmasi bosilganda"""
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         lang = await get_user_lang(state)
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[

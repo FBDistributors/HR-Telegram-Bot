@@ -30,7 +30,6 @@ from utils.commands import user_commands
 
 # SOZLAMALAR
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = os.getenv("ADMIN_ID")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ASOSIY BOT QISMI
@@ -88,9 +87,9 @@ async def process_language_selection(callback: CallbackQuery, state: FSMContext)
     await state.update_data(language=lang)
     await callback.message.delete()
 
-    user_id = str(callback.from_user.id)
+    user_id = callback.from_user.id
     
-    if user_id == ADMIN_ID:
+    if await db.is_admin(user_id):
         keyboard = get_admin_main_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)
@@ -131,7 +130,7 @@ async def handle_faq_shortcut(message: Message, state: FSMContext):
     if await db.is_employee_by_tg_id(user_id):
         logging.info(f"Xodim {user_id} FAQ bo'limiga qayta kirdi.")
         
-        if str(user_id) == ADMIN_ID:
+        if await db.is_admin(user_id):
             keyboard = get_admin_main_keyboard(lang)
         else:
             keyboard = get_user_keyboard(lang)

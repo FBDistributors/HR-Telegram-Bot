@@ -68,6 +68,7 @@ class Employee(Base):
     phone_number = Column(String, unique=True, nullable=False)
     position = Column(String) # Lavozimi
     telegram_id = Column(BigInteger, nullable=True) # Bog'lash uchun
+    is_admin = Column(String, default='false') # Admin rolini belgilaydi
 
     # database.py fayliga qo'shiladigan yangi jadval modeli
 
@@ -176,6 +177,8 @@ async def _migrate_documents_table(conn) -> None:
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS description_uz TEXT",
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS description_ru TEXT",
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS created_at VARCHAR",
+        # Employees jadvaliga admin ustuni qo'shish
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_admin VARCHAR DEFAULT 'false'",
     ]
 
     for stmt in alter_statements:
@@ -288,6 +291,49 @@ async def is_employee_by_tg_id(telegram_id: int) -> bool:
         )
         employee = result.scalars().first()
         return employee is not None
+
+
+# --- ADMIN BOSHQARUV FUNKSIYALARI ---
+
+async def is_admin(user_id: int) -> bool:
+    """Berilgan Telegram ID admin ekanligini tekshiradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Employee).filter(
+                Employee.telegram_id == user_id,
+                Employee.is_admin == 'true'
+            )
+        )
+        admin = result.scalars().first()
+        return admin is not None
+
+
+async def get_all_admins():
+    """Barcha adminlar ro'yxatini qaytaradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Employee).filter(Employee.is_admin == 'true')
+        )
+        admins = result.scalars().all()
+        return admins
+
+
+async def set_admin_status(user_id: int, admin_status: bool):
+    """Foydalanuvchining admin statusini o'zgartiradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Employee).filter(Employee.telegram_id == user_id)
+        )
+        employee = result.scalars().first()
+        
+        if employee:
+            employee.is_admin = 'true' if admin_status else 'false'
+            await session.commit()
+            logging.info(f"Foydalanuvchi {user_id} admin statusi o'zgartirildi: {admin_status}")
+            return True
+        else:
+            logging.warning(f"Foydalanuvchi {user_id} employees jadvalida topilmadi")
+            return False
     
     # database.py fayliga qo'shiladigan yangi funksiyalar
 

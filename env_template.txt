@@ -1,6 +1,5 @@
 # Telegram Bot sozlamalari
 BOT_TOKEN=sizning_bot_tokeningiz
-ADMIN_ID=sizning_telegram_id_ingiz
 HR_GROUP_ID=hr_guruh_id_si
 
 # Google Gemini AI API kaliti

@@ -18,7 +18,6 @@ import database as db
 router = Router()
 
 # Sozlamalar
-ADMIN_ID = os.getenv("ADMIN_ID")
 
 
 async def get_user_lang(state: FSMContext):
@@ -74,7 +73,7 @@ async def process_documents_verification(message: Message, state: FSMContext):
     # Xodim ekanligini tekshiramiz
     is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
     
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         keyboard = get_admin_main_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)

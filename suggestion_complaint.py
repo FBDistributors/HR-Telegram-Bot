@@ -14,7 +14,6 @@ import database as db
 router = Router()
 
 # Sozlamalar
-ADMIN_ID = os.getenv("ADMIN_ID")
 HR_GROUP_ID = os.getenv("HR_GROUP_ID")
 
 
@@ -107,7 +106,7 @@ async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot)
     await message.answer(texts[lang]['suggestion_thanks'])
     
     # Asosiy menyuga qaytish
-    if str(user_id) == ADMIN_ID:
+    if await db.is_admin(user_id):
         keyboard = get_admin_main_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)
@@ -154,7 +153,7 @@ async def process_suggestion_contact(message: Message, state: FSMContext, bot: B
 
     await message.answer(texts[lang]['suggestion_thanks'], reply_markup=ReplyKeyboardRemove())
 
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         keyboard = get_admin_main_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)

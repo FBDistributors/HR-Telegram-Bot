@@ -17,7 +17,6 @@ router = Router()
 
 # Sozlamalar
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_ID = os.getenv("ADMIN_ID")
 HR_GROUP_ID = os.getenv("HR_GROUP_ID")
 
 if GEMINI_API_KEY:
@@ -64,7 +63,7 @@ async def process_faq_verification(message: types.Message, state: FSMContext):
     
     await state.update_data(language=lang)
 
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         keyboard = get_admin_main_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)

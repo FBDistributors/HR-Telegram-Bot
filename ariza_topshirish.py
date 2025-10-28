@@ -18,7 +18,6 @@ router = Router()
 # Sozlamalar
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 HR_GROUP_ID = os.getenv("HR_GROUP_ID")
-ADMIN_ID = os.getenv("ADMIN_ID")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -119,7 +118,7 @@ async def process_resume_file(message: types.Message, state: FSMContext, bot: Bo
 
     await message.answer(texts[lang]['application_thanks'])
     
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         keyboard = get_admin_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)
@@ -237,7 +236,7 @@ async def process_convo_contact(message: types.Message, state: FSMContext, bot: 
 
     await message.answer(texts[lang]['application_thanks'])
     
-    if str(message.from_user.id) == ADMIN_ID:
+    if await db.is_admin(message.from_user.id):
         keyboard = get_admin_keyboard(lang)
     else:
         keyboard = get_user_keyboard(lang)
