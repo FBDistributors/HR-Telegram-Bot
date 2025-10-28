@@ -80,25 +80,21 @@ async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot)
 
     # HR guruhiga yuborish
     if HR_GROUP_ID:
-        hr_notification = (
-            f"🔔 **{texts[lang]['hr_new_suggestion']}**\n\n"
-            f"👤 **FIO:** {full_name}"
-        )
+        hr_notification = f"🆕 **{texts[lang]['hr_new_suggestion']}**\n\n"
+        hr_notification += f"👤 **Foydalanuvchi:** {full_name}"
         
         if username:
             hr_notification += f" (@{username})"
         
-        hr_notification += (
-            f"\n📱 **Telefon:** {phone_number}\n"
-            f"-------------------\n"
-            f"📝 **Xabar:**\n{suggestion_text}"
-        )
+        hr_notification += f"\n📱 **Telefon:** {phone_number}\n\n"
+        hr_notification += f"💬 **Xabar matni:**\n\"{suggestion_text}\"\n\n"
+        hr_notification += f"**{texts[lang]['hr_reply_instruction']}**"
         
         try:
             sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
             logging.info(f"Taklif/shikoyat HR guruhiga yuborildi. User ID: {user_id}")
             # HR guruhidagi xabar ID sini bazaga saqlash
-            await db.save_suggestion_message(user_id, sent_message.message_id, lang)
+            await db.save_suggestion_message(user_id, sent_message.message_id, lang, suggestion_text)
         except Exception as e:
             logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
     
@@ -147,7 +143,7 @@ async def process_suggestion_contact(message: Message, state: FSMContext, bot: B
         try:
             sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
             # HR guruhidagi xabar ID sini bazaga saqlash
-            await db.save_suggestion_message(message.from_user.id, sent_message.message_id, lang)
+            await db.save_suggestion_message(message.from_user.id, sent_message.message_id, lang, suggestion_text)
         except Exception as e:
             logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
 
@@ -197,8 +193,14 @@ async def handle_hr_group_reply(message: Message, bot: Bot):
         user_id = suggestion.user_id
         user_lang = suggestion.user_lang
         
-        # Javob matnini tayyorlaymiz
-        reply_text = f"{texts[user_lang]['hr_reply_prefix']} {message.text}"
+        # Original xabar matnini olish (uzunligini cheklash)
+        original_text = suggestion.original_text or "Xabar"
+        if len(original_text) > 50:
+            original_text = original_text[:50] + "..."
+        
+        # Javob matnini tayyorlaymiz (original kontekst bilan)
+        reply_header = texts[user_lang]['hr_reply_to_suggestion'].format(original=original_text)
+        reply_text = f"{reply_header}\n\n{texts[user_lang]['hr_reply_prefix']} {message.text}"
         
         # Foydalanuvchiga javob yuboramiz
         await bot.send_message(chat_id=user_id, text=reply_text)

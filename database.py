@@ -98,6 +98,7 @@ class SuggestionMessage(Base):
     user_id = Column(BigInteger, nullable=False)
     hr_message_id = Column(Integer, nullable=False)  # HR guruhidagi xabar ID
     user_lang = Column(String(2), nullable=False)  # Foydalanuvchi tili
+    original_text = Column(Text, nullable=True)  # Asl taklif/shikoyat matni
     created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
@@ -179,6 +180,8 @@ async def _migrate_documents_table(conn) -> None:
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS created_at VARCHAR",
         # Employees jadvaliga admin ustuni qo'shish
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_admin VARCHAR DEFAULT 'false'",
+        # SuggestionMessage jadvaliga original_text ustuni qo'shish
+        "ALTER TABLE suggestion_messages ADD COLUMN IF NOT EXISTS original_text TEXT",
     ]
 
     for stmt in alter_statements:
@@ -455,13 +458,14 @@ async def replace_kb_from_list(entries: list, lang: str):
 
 # --- TAKLIF/SHIKOYAT XABARLARI UCHUN YANGI FUNKSIYALAR ---
 
-async def save_suggestion_message(user_id: int, hr_message_id: int, lang: str):
+async def save_suggestion_message(user_id: int, hr_message_id: int, lang: str, original_text: str = None):
     """HR guruhiga yuborilgan taklif/shikoyat xabarining ma'lumotlarini saqlaydi."""
     async with async_session_maker() as session:
         new_suggestion_message = SuggestionMessage(
             user_id=user_id,
             hr_message_id=hr_message_id,
-            user_lang=lang
+            user_lang=lang,
+            original_text=original_text
         )
         session.add(new_suggestion_message)
         await session.commit()

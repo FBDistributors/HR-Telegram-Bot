@@ -83,6 +83,8 @@ texts = {
         'suggestion_thanks': "Xabaringiz qabul qilindi, rahmat!",
         'hr_new_suggestion': "Yangi taklif/shikoyat!",
         'hr_reply_prefix': "HR jamoasidan javob:",
+        'hr_reply_instruction': "👆 Javob berish uchun shu xabarni reply qiling",
+        'hr_reply_to_suggestion': "Sizning \"{original}\" xabaringizga javob:",
 
         # --- HUJJATLAR BO'LIMI ---
         'documents_auth_prompt': "Bu bo'lim faqat kompaniya xodimlari uchun. Iltimos, shaxsingizni tasdiqlash uchun kontaktingizni yuboring.",
@@ -224,6 +226,8 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'suggestion_thanks': "Ваше сообщение принято, спасибо!",
         'hr_new_suggestion': "Новое предложение/жалоба!",
         'hr_reply_prefix': "Ответ от HR команды:",
+        'hr_reply_instruction': "👆 Для ответа сделайте reply на это сообщение",
+        'hr_reply_to_suggestion': "Ответ на ваше сообщение \"{original}\":",
 
         # --- РАЗДЕЛ ДОКУМЕНТОВ ---
         'documents_auth_prompt': "Этот раздел предназначен только для сотрудников компании. Пожалуйста, отправьте свой контакт для подтверждения личности.",
