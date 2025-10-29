@@ -160,10 +160,10 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
     if cb == 'tmpl_cat_debt':
         # Qarzdorlik: info hujjat, Excel bo'lishi mumkin. Birinchi mavjud faylni yuboramiz.
         documents = await db.get_debt_documents()
-    if not documents:
-        await callback.message.edit_text(
+        if not documents:
+            await callback.message.edit_text(
                 texts[lang]['no_debt_documents'],
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')]
                 ])
             )
@@ -173,7 +173,7 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
         try:
             if not doc.file_path_single or not os.path.exists(doc.file_path_single):
                 await callback.answer("Fayl topilmadi.", show_alert=True)
-        return
+                return
             file = FSInputFile(doc.file_path_single)
             doc_name = doc.name_uz if lang == 'uz' else (doc.name_ru or doc.name_uz)
             await callback.message.answer_document(file, caption=f"💰 {doc_name}")
@@ -215,14 +215,14 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
         docs = await db.get_template_documents_by_category(db_category, lang)
 
         if not docs:
-    await callback.message.edit_text(
+            await callback.message.edit_text(
                 texts[lang]['no_templates_in_category'],
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')],
                 ])
             )
             await state.set_state(DocumentForm.waiting_template_category)
-    await callback.answer()
+            await callback.answer()
             return
 
         # Eng so'nggi va mavjud faylli hujjatni tanlaymiz
