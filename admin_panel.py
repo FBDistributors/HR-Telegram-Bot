@@ -218,6 +218,8 @@ async def handle_add_document_button(message: Message, state: FSMContext):
             [InlineKeyboardButton(text=texts[lang]['tmpl_cat_entry_form'], callback_data='add_tmpl_cat_entry')],
             [InlineKeyboardButton(text=texts[lang]['tmpl_cat_dismissal'], callback_data='add_tmpl_cat_dismissal')],
             [InlineKeyboardButton(text=texts[lang]['tmpl_cat_exit_interview'], callback_data='add_tmpl_cat_exit')],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_vacation'], callback_data='add_tmpl_cat_vacation')],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_leave_without_pay'], callback_data='add_tmpl_cat_leave_without_pay')],
             [InlineKeyboardButton(text=texts[lang]['info_category_debt'], callback_data='add_info_debt')],
         ])
         await message.answer(texts[lang]['ask_template_category'], reply_markup=keyboard)
@@ -264,6 +266,10 @@ async def process_template_category_choice(callback: CallbackQuery, state: FSMCo
         category = "Bo'shatish"
     elif callback.data == 'add_tmpl_cat_exit':
         category = "Ishdan bo'shash oldidan intervyu"
+    elif callback.data == 'add_tmpl_cat_vacation':
+        category = "Ta'til uchun ariza"
+    elif callback.data == 'add_tmpl_cat_leave_without_pay':
+        category = "O'z hisobidan ta'til"
     else:  # add_info_debt
         category = "Qarzdorlik"
         is_info = True

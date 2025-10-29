@@ -67,15 +67,13 @@ async def process_documents_verification(message: Message, state: FSMContext):
             await state.set_state(MainForm.main_menu)
             return
 
-        # Foydalanuvchini bazaga qo'shamiz (agar mavjud bo'lmasa)
+        # Foydalanuvchini bazaga qo'shamiz (telefon raqami bilan)
         await db.add_user(
             user_id=message.from_user.id,
             full_name=message.from_user.full_name,
-            username=message.from_user.username
+            username=message.from_user.username,
+            phone_number=user_phone_number
         )
-        
-        # Raqamni saqlaymiz
-        await db.update_user_phone_number(message.from_user.id, user_phone_number)
 
         # Xodim ekanligini tekshiramiz
         is_authorized = await db.verify_employee_by_phone(user_phone_number, message.from_user.id)
@@ -88,7 +86,7 @@ async def process_documents_verification(message: Message, state: FSMContext):
         if is_authorized:
             logging.info(f"Xodim {user_phone_number} hujjatlar bo'limiga kirdi.")
             await message.answer(texts[lang]['documents_welcome'], reply_markup=ReplyKeyboardRemove())
-            await show_sections(message, state)
+            await show_template_categories(message, state)
         else:
             logging.warning(f"Ruxsatsiz urinish (xodim emas): {user_phone_number}")
             await message.answer(texts[lang]['documents_auth_fail'], reply_markup=keyboard)
@@ -140,6 +138,8 @@ async def show_template_categories(message_or_cb: Message | CallbackQuery, state
         [InlineKeyboardButton(text=texts[lang]['tmpl_cat_entry_form'], callback_data='tmpl_cat_entry')],
         [InlineKeyboardButton(text=texts[lang]['tmpl_cat_dismissal'], callback_data='tmpl_cat_dismissal')],
         [InlineKeyboardButton(text=texts[lang]['tmpl_cat_exit_interview'], callback_data='tmpl_cat_exit')],
+        [InlineKeyboardButton(text=texts[lang]['tmpl_cat_vacation'], callback_data='tmpl_cat_vacation')],
+        [InlineKeyboardButton(text=texts[lang]['tmpl_cat_leave_without_pay'], callback_data='tmpl_cat_leave_without_pay')],
         [InlineKeyboardButton(text=texts[lang]['info_category_debt'], callback_data='tmpl_cat_debt')],
     ])
 
@@ -202,8 +202,15 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
             db_category = "Ishga kirish anketasi"
         elif cb == 'tmpl_cat_dismissal':
             db_category = "Bo'shatish"
-        else:  # 'tmpl_cat_exit'
+        elif cb == 'tmpl_cat_exit':
             db_category = "Ishdan bo'shash oldidan intervyu"
+        elif cb == 'tmpl_cat_vacation':
+            db_category = "Ta'til uchun ariza"
+        elif cb == 'tmpl_cat_leave_without_pay':
+            db_category = "O'z hisobidan ta'til"
+        else:
+            await callback.answer("Noma'lum kategoriya.", show_alert=True)
+            return
 
         docs = await db.get_template_documents_by_category(db_category, lang)
 

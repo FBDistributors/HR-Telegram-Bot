@@ -162,6 +162,8 @@ async def _migrate_documents_table(conn) -> None:
     from sqlalchemy import text
 
     alter_statements = [
+        # Users jadvaliga phone_number ustuni qo'shish
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS name_uz VARCHAR",
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS name_ru VARCHAR",
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR",
@@ -193,16 +195,18 @@ async def _migrate_documents_table(conn) -> None:
 
 
 
-async def add_user(user_id: int, full_name: str, username: str | None):
+async def add_user(user_id: int, full_name: str, username: str | None, phone_number: str | None = None):
     """Yangi foydalanuvchini qo'shadi yoki ma'lumotlarini yangilaydi."""
     async with async_session_maker() as session:
         user = await session.get(User, user_id)
         if user:
             user.full_name = full_name
             user.username = username
+            if phone_number:
+                user.phone_number = phone_number
             logging.info(f"Foydalanuvchi {user_id} ma'lumotlari yangilandi.")
         else:
-            new_user = User(user_id=user_id, full_name=full_name, username=username)
+            new_user = User(user_id=user_id, full_name=full_name, username=username, phone_number=phone_number)
             session.add(new_user)
             logging.info(f"Yangi foydalanuvchi {user_id} bazaga qo'shildi.")
         await session.commit()
