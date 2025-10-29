@@ -133,7 +133,7 @@ async def show_template_categories_callback(callback: CallbackQuery, state: FSMC
 async def show_template_categories(message_or_cb: Message | CallbackQuery, state: FSMContext):
     """Namuna hujjatlar uchun kategoriyalarni ko'rsatish (Message yoki Callback)."""
     lang = await get_user_lang(state)
-
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=texts[lang]['tmpl_cat_entry_form'], callback_data='tmpl_cat_entry')],
         [InlineKeyboardButton(text=texts[lang]['tmpl_cat_dismissal'], callback_data='tmpl_cat_dismissal')],
@@ -160,10 +160,10 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
     if cb == 'tmpl_cat_debt':
         # Qarzdorlik: info hujjat, Excel bo'lishi mumkin. Birinchi mavjud faylni yuboramiz.
         documents = await db.get_debt_documents()
-        if not documents:
-            await callback.message.edit_text(
+    if not documents:
+        await callback.message.edit_text(
                 texts[lang]['no_debt_documents'],
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')]
                 ])
             )
@@ -173,7 +173,7 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
         try:
             if not doc.file_path_single or not os.path.exists(doc.file_path_single):
                 await callback.answer("Fayl topilmadi.", show_alert=True)
-                return
+        return
             file = FSInputFile(doc.file_path_single)
             doc_name = doc.name_uz if lang == 'uz' else (doc.name_ru or doc.name_uz)
             await callback.message.answer_document(file, caption=f"💰 {doc_name}")
@@ -215,34 +215,78 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
         docs = await db.get_template_documents_by_category(db_category, lang)
 
         if not docs:
-            await callback.message.edit_text(
+    await callback.message.edit_text(
                 texts[lang]['no_templates_in_category'],
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')],
                 ])
             )
             await state.set_state(DocumentForm.waiting_template_category)
-            await callback.answer()
+    await callback.answer()
             return
 
-        chosen = docs[0]
-        full_doc = await db.get_document_by_id(chosen['id'])
-        if not full_doc:
-            await callback.answer("Hujjat topilmadi.", show_alert=True)
+        # Eng so'nggi va mavjud faylli hujjatni tanlaymiz
+        full_doc = None
+        file_path = None
+        doc_name = None
+        for d in docs:  # docs DBda id desc bilan tartiblanadi
+            candidate = await db.get_document_by_id(d['id'])
+            if not candidate:
+                continue
+            candidate_path = candidate.file_path_uz_pdf or candidate.file_path_ru_pdf or candidate.file_path_single
+            if candidate_path and os.path.exists(candidate_path):
+                full_doc = candidate
+                file_path = candidate_path
+                doc_name = candidate.name_uz if lang == 'uz' else (candidate.name_ru or candidate.name_uz)
+                break
+
+        if not full_doc or not file_path:
+            await callback.answer("PDF fayl topilmadi (yangi faylni yuklang).", show_alert=True)
             return
 
-        file_path = full_doc.file_path_uz_pdf or full_doc.file_path_ru_pdf or full_doc.file_path_single
-        doc_name = full_doc.name_uz if lang == 'uz' else (full_doc.name_ru or full_doc.name_uz)
+        logging.info(f"Kategoriya: {db_category}, Doc ID: {full_doc.id}, File path: {file_path}")
 
         if not file_path:
+            logging.warning(f"Hujjat {full_doc.id} uchun file_path topilmadi. UZ_PDF: {full_doc.file_path_uz_pdf}, RU_PDF: {full_doc.file_path_ru_pdf}, Single: {full_doc.file_path_single}")
             await callback.answer("PDF fayl mavjud emas.", show_alert=True)
             return
+
+        # Fayl yo'lini tekshiramiz
+        if not os.path.exists(file_path):
+            logging.error(f"Fayl yo'li mavjud emas: {file_path}")
+            # Fayl nomida encoding muammosi bo'lishi mumkin. Bazadagi yo'ldagi fayl nomini diskdagi bilan solishtiramiz
+            templates_dir = "documents/templates"
+            if os.path.exists(templates_dir):
+                import glob
+                # Barcha PDF fayllarni timestamp bo'yicha qidirish
+                expected_timestamp = file_path.split('/')[-1].split('_')[0] if '_' in file_path.split('/')[-1] else None
+                if expected_timestamp and len(expected_timestamp) == 14:  # YYYYMMDDHHMMSS
+                    # Shu timestamp bilan boshlanuvchi faylni qidirish
+                    pattern = os.path.join(templates_dir, f"{expected_timestamp}_*.pdf")
+                    matching_files = glob.glob(pattern)
+                    if matching_files:
+                        file_path = matching_files[0]
+                        logging.info(f"Timestamp bo'yicha alternativ fayl topildi: {file_path}")
+                    else:
+                        # Agar timestamp bo'yicha topilmasa, barcha PDF fayllarni ko'rib chiqamiz
+                        all_pdfs = glob.glob(os.path.join(templates_dir, "*.pdf"))
+                        if all_pdfs:
+                            # Hujjat ID si bilan mos keladigan eng yaqin faylni topish
+                            logging.warning(f"Timestamp bo'yicha fayl topilmadi. Templates papkasida {len(all_pdfs)} ta PDF mavjud.")
+                            logging.warning(f"Faylni qayta yuklash kerak yoki bazadagi yo'lni to'g'rilash kerak.")
+            
+            # Agar hali ham topilmasa, xatolik xabari
+            if not os.path.exists(file_path):
+                await callback.answer("Fayl diskda topilmadi. Iltimos, admin bilan bog'laning yoki faylni qayta yuklang.", show_alert=True)
+                logging.error(f"Fayl yo'li mavjud emas va alternativ ham topilmadi: {file_path}")
+                return
 
         try:
             file = FSInputFile(file_path, filename=f"{doc_name}.pdf")
             await bot.send_document(chat_id=callback.from_user.id, document=file)
-
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            logging.info(f"Fayl muvaffaqiyatli yuborildi: {file_path}")
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')]
             ])
             await callback.message.edit_text("✅ Hujjat yuborildi.", reply_markup=keyboard)
@@ -265,24 +309,24 @@ async def send_template_pdf(callback: CallbackQuery, state: FSMContext, bot: Bot
     """Namuna hujjat tanlanganda darhol PDF yuboriladi (til/format so'ralmaydi)."""
     lang = await get_user_lang(state)
     doc_id = int(callback.data.split('_')[2])
-
+    
     document = await db.get_document_by_id(doc_id)
     if not document:
         await callback.answer("Hujjat topilmadi.", show_alert=True)
         return
-
+    
     # PDF faylini tanlash: mavjudlar ichidan birinchi
     file_path = document.file_path_uz_pdf or document.file_path_ru_pdf or document.file_path_single
     doc_name = document.name_uz if lang == 'uz' else (document.name_ru or document.name_uz)
-
+    
     if not file_path:
         await callback.answer("PDF fayl mavjud emas.", show_alert=True)
         return
-
+    
     try:
         file = FSInputFile(file_path, filename=f"{doc_name}.pdf")
         await bot.send_document(chat_id=callback.from_user.id, document=file)
-
+        
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')],
             [InlineKeyboardButton(text=texts[lang]['back_to_sections'], callback_data='doc_back_sections')]
@@ -291,7 +335,7 @@ async def send_template_pdf(callback: CallbackQuery, state: FSMContext, bot: Bot
     except Exception as e:
         logging.error(f"Faylni yuborishda xatolik: {e}")
         await callback.answer("Faylni yuborishda xatolik.", show_alert=True)
-
+    
     await callback.answer()
 
 

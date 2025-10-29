@@ -553,13 +553,19 @@ async def get_template_documents_by_category(category: str, lang: str):
     """Berilgan kategoriya bo'yicha namuna hujjatlarni qaytaradi (faqat faol)."""
     async with async_session_maker() as session:
         result = await session.execute(
-            select(Document).where(
+            select(Document)
+            .where(
                 Document.is_template == 'true',
                 Document.is_active == 'true',
                 Document.category == category
             )
+            .order_by(Document.id.desc())
         )
         documents = result.scalars().all()
+        
+        logging.info(f"get_template_documents_by_category: category='{category}', topildi: {len(documents)} ta hujjat")
+        for doc in documents:
+            logging.info(f"  - Doc ID: {doc.id}, Name UZ: {doc.name_uz}, Name RU: {doc.name_ru}, Category: {doc.category}, UZ_PDF: {doc.file_path_uz_pdf}")
 
         result_docs: list[dict] = []
         for doc in documents:
@@ -569,7 +575,7 @@ async def get_template_documents_by_category(category: str, lang: str):
                 'file_path_pdf': doc.file_path_uz_pdf if lang == 'uz' else doc.file_path_ru_pdf,
                 'file_path_docx': doc.file_path_uz_docx if lang == 'uz' else doc.file_path_ru_docx,
             })
-
+        
         return result_docs
 
 

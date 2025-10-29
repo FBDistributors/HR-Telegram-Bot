@@ -345,7 +345,17 @@ async def process_template_uz_pdf(message: Message, state: FSMContext, bot: Bot)
     os.makedirs(target_dir, exist_ok=True)
     # Fayl nomini noyob qilish uchun timestamp qo'shamiz
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    safe_name = message.document.file_name
+    
+    # Fayl nomini xavfsiz qilib tozalash (kirill, maxsus belgilar, uzunlik)
+    import re
+    original_name = message.document.file_name or "document.pdf"
+    # Extensionni olib tashlaymiz
+    name_part, ext = os.path.splitext(original_name)
+    # Faqat lotin harflari, raqamlar, tire va underscore qoldiramiz
+    safe_name_part = re.sub(r'[^a-zA-Z0-9_-]', '_', name_part)
+    # Uzunlikni cheklaymiz (Windows fayl nomi limiti ~255, lekin biz 100 bilan cheklaymiz)
+    safe_name_part = safe_name_part[:100] if len(safe_name_part) > 100 else safe_name_part
+    safe_name = f"{safe_name_part}{ext}"
     file_path = f"{target_dir}/{timestamp}_{safe_name}"
     file_content = file_bytes_io.read()
     async with aiofiles.open(file_path, 'wb') as f:
