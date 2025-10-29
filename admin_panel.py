@@ -1,6 +1,7 @@
 # admin_panel.py fayli (Iyerarxik bilimlar bazasi uchun yangilangan)
 
 import os
+from datetime import datetime
 import logging
 import io
 import docx
@@ -164,6 +165,8 @@ async def process_kb_lang_choice(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+## Removed adddoc_lang flow as per user request (directly show doc type)
+
 # --- E'LON YUBORISH BO'LIMI ---
 
 @router.message(F.text.in_([texts['uz']['broadcast_button'], texts['ru']['broadcast_button']]))
@@ -210,14 +213,15 @@ async def handle_add_document_button(message: Message, state: FSMContext):
     """Hujjat qo'shish tugmasi bosilganda"""
     if await db.is_admin(message.from_user.id):
         lang = await get_user_lang(state)
-        
+        # To'g'ridan-to'g'ri kategoriya tugmalarini ko'rsatamiz (doc type yo'q)
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=texts[lang]['doc_type_template'], callback_data="add_doc_template")],
-            [InlineKeyboardButton(text=texts[lang]['doc_type_info'], callback_data="add_doc_info")],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_entry_form'], callback_data='add_tmpl_cat_entry')],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_dismissal'], callback_data='add_tmpl_cat_dismissal')],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_exit_interview'], callback_data='add_tmpl_cat_exit')],
+            [InlineKeyboardButton(text=texts[lang]['info_category_debt'], callback_data='add_info_debt')],
         ])
-        
-        await message.answer(texts[lang]['ask_doc_type'], reply_markup=keyboard)
-        await state.set_state(AddDocumentForm.waiting_doc_type)
+        await message.answer(texts[lang]['ask_template_category'], reply_markup=keyboard)
+        await state.set_state(AddDocumentForm.waiting_template_category)
 
 
 @router.callback_query(AddDocumentForm.waiting_doc_type)
@@ -229,8 +233,14 @@ async def process_doc_type_choice(callback: CallbackQuery, state: FSMContext):
     await state.update_data(doc_type=doc_type)
     
     if doc_type == 'template':
-        await callback.message.edit_text(texts[lang]['ask_template_name_uz'])
-        await state.set_state(AddDocumentForm.waiting_template_name_uz)
+        # Avval kategoriya tanlanadi
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_entry_form'], callback_data='add_tmpl_cat_entry')],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_dismissal'], callback_data='add_tmpl_cat_dismissal')],
+            [InlineKeyboardButton(text=texts[lang]['tmpl_cat_exit_interview'], callback_data='add_tmpl_cat_exit')],
+        ])
+        await callback.message.edit_text(texts[lang]['ask_template_category'], reply_markup=keyboard)
+        await state.set_state(AddDocumentForm.waiting_template_category)
     else:  # info
         # Ma'lumot hujjat uchun avval kategoriya tanlash
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -239,6 +249,30 @@ async def process_doc_type_choice(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(texts[lang]['ask_info_category'], reply_markup=keyboard)
         await state.set_state(AddDocumentForm.waiting_info_category)
     
+    await callback.answer()
+
+
+@router.callback_query(AddDocumentForm.waiting_template_category)
+async def process_template_category_choice(callback: CallbackQuery, state: FSMContext):
+    """Namuna hujjat uchun kategoriya tanlash"""
+    lang = await get_user_lang(state)
+
+    is_info = False
+    if callback.data == 'add_tmpl_cat_entry':
+        category = "Ishga kirish anketasi"
+    elif callback.data == 'add_tmpl_cat_dismissal':
+        category = "Bo'shatish"
+    elif callback.data == 'add_tmpl_cat_exit':
+        category = "Ishdan bo'shash oldidan intervyu"
+    else:  # add_info_debt
+        category = "Qarzdorlik"
+        is_info = True
+
+    await state.update_data(template_category=category, add_is_info=is_info)
+    # Ism so'ramaymiz, darhol fayl so'raymiz (Debt uchun Excel, boshqalar uchun PDF)
+    prompt_text = texts[lang]['ask_debt_excel'] if is_info else texts[lang]['ask_template_uz_pdf']
+    await callback.message.edit_text(prompt_text)
+    await state.set_state(AddDocumentForm.waiting_template_uz_pdf)
     await callback.answer()
 
 
@@ -297,15 +331,96 @@ async def process_template_uz_pdf(message: Message, state: FSMContext, bot: Bot)
     
     # Faylni diskga saqlash
     import os
-    os.makedirs('documents/templates', exist_ok=True)
-    file_path = f"documents/templates/{message.document.file_name}"
+    # Info yoki Template ekanligini holatdan olamiz
+    user_data_before = await state.get_data()
+    is_info_add = user_data_before.get('add_is_info') is True
+
+    target_dir = 'documents/info' if is_info_add else 'documents/templates'
+    os.makedirs(target_dir, exist_ok=True)
+    # Fayl nomini noyob qilish uchun timestamp qo'shamiz
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    safe_name = message.document.file_name
+    file_path = f"{target_dir}/{timestamp}_{safe_name}"
     file_content = file_bytes_io.read()
     async with aiofiles.open(file_path, 'wb') as f:
         await f.write(file_content)
     
+    # Nomni fayl nomidan olish (agar hali belgilanmagan bo'lsa)
+    try:
+        base_name = os.path.splitext(message.document.file_name)[0]
+    except Exception:
+        base_name = None
+    if base_name:
+        user_data_current = await state.get_data()
+        if not user_data_current.get('name_uz'):
+            await state.update_data(name_uz=base_name)
+
     await state.update_data(file_path_uz_pdf=file_path)
-    await message.answer(texts[lang]['ask_template_uz_docx'])
-    await state.set_state(AddDocumentForm.waiting_template_uz_docx)
+
+    # Endi faqat bitta fayl talab qilinadi: shu yerning o'zida saqlab yakunlaymiz
+    user_data = await state.get_data()
+
+    # Nomlarni to'ldirish: agar mavjud bo'lmasa, fayl nomidan
+    base_name = None
+    try:
+        base_name = os.path.splitext(message.document.file_name)[0]
+    except Exception:
+        pass
+    name_uz = user_data.get('name_uz') or base_name or 'Hujjat'
+    name_ru = user_data.get('name_ru') or name_uz
+
+    try:
+        if is_info_add:
+            # Excel formatini tekshiramiz (.xlsx yoki .xls)
+            if not (safe_name.lower().endswith('.xlsx') or safe_name.lower().endswith('.xls')):
+                await message.answer("❌ Iltimos, faqat Excel fayl yuboring (.xlsx yoki .xls).")
+                return
+            # Eski Qarzdorlik hujjatlarini DB va diskdan o'chiramiz
+            try:
+                old_paths = await db.delete_info_documents_by_type('Qarzdorlik')
+                for p in old_paths:
+                    try:
+                        if p and os.path.exists(p):
+                            os.remove(p)
+                    except Exception as ee:
+                        logging.warning(f"Eski qarzdorlik faylini o'chirishda ogohlantirish: {ee}")
+            except Exception as del_e:
+                logging.warning(f"Eski qarzdorlik yozuvlarini o'chirishda ogohlantirish: {del_e}")
+
+            # Ma'lumot hujjati: bitta fayl (Excel) file_path_single
+            await db.add_document(
+                name_uz=name_uz,
+                name_ru=name_ru,
+                is_template='false',
+                file_path_single=file_path,
+                uploaded_by=message.from_user.id,
+                document_type='Qarzdorlik',
+                expires_at=None,
+                category=user_data.get('template_category')
+            )
+        else:
+            # Namuna hujjat: bitta PDF
+            await db.add_document(
+                name_uz=name_uz,
+                name_ru=name_ru,
+                is_template='true',
+                file_path_uz_pdf=file_path,
+                file_path_uz_docx=None,
+                file_path_ru_pdf=None,
+                file_path_ru_docx=None,
+                file_path_single=None,
+                uploaded_by=message.from_user.id,
+                document_type=None,
+                expires_at=None,
+                category=user_data.get('template_category')
+            )
+
+        await message.answer(texts[lang]['doc_added_success'], reply_markup=get_admin_main_keyboard(lang))
+        await state.set_state(MainForm.main_menu)
+    except Exception as e:
+        logging.error(f"Hujjat qo'shishda xatolik (pdf-only): {e}")
+        await message.answer(texts[lang]['doc_add_error'])
+        await state.set_state(MainForm.main_menu)
 
 
 @router.message(AddDocumentForm.waiting_template_uz_docx, F.document)
@@ -353,6 +468,16 @@ async def process_template_ru_pdf(message: Message, state: FSMContext, bot: Bot)
     async with aiofiles.open(file_path, 'wb') as f:
         await f.write(file_content)
     
+    # Ruscha nomni fayl nomidan olish (agar hali belgilanmagan bo'lsa)
+    try:
+        base_name = os.path.splitext(message.document.file_name)[0]
+    except Exception:
+        base_name = None
+    if base_name:
+        user_data_current = await state.get_data()
+        if not user_data_current.get('name_ru'):
+            await state.update_data(name_ru=base_name)
+
     await state.update_data(file_path_ru_pdf=file_path)
     await message.answer(texts[lang]['ask_template_ru_docx'])
     await state.set_state(AddDocumentForm.waiting_template_ru_docx)
@@ -389,6 +514,7 @@ async def process_template_ru_docx(message: Message, state: FSMContext, bot: Bot
             file_path_uz_docx=user_data['file_path_uz_docx'],
             file_path_ru_pdf=user_data['file_path_ru_pdf'],
             file_path_ru_docx=file_path,
+            category=user_data.get('template_category'),
             uploaded_by=message.from_user.id
         )
         

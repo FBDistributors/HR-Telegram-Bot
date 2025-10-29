@@ -45,6 +45,7 @@ class DocumentForm(StatesGroup):
     verification = State()  # Xodim ekanligini tekshirish
     waiting_section = State()  # Bo'lim tanlash (namuna yoki ma'lumot)
     # Namuna hujjatlar uchun
+    waiting_template_category = State()
     waiting_template_document = State()
     waiting_language = State()
     waiting_format = State()
@@ -56,6 +57,7 @@ class DocumentForm(StatesGroup):
 # Admin: Hujjat qo'shish uchun holatlar
 class AddDocumentForm(StatesGroup):
     waiting_doc_type = State()  # namuna yoki ma'lumot
+    waiting_template_category = State()
     waiting_template_name_uz = State()
     waiting_template_name_ru = State()
     waiting_template_uz_pdf = State()

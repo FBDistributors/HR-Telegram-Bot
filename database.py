@@ -545,6 +545,30 @@ async def get_template_documents(lang: str):
         return result_docs
 
 
+async def get_template_documents_by_category(category: str, lang: str):
+    """Berilgan kategoriya bo'yicha namuna hujjatlarni qaytaradi (faqat faol)."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Document).where(
+                Document.is_template == 'true',
+                Document.is_active == 'true',
+                Document.category == category
+            )
+        )
+        documents = result.scalars().all()
+
+        result_docs: list[dict] = []
+        for doc in documents:
+            result_docs.append({
+                'id': doc.id,
+                'name': doc.name_uz if lang == 'uz' else (doc.name_ru or doc.name_uz),
+                'file_path_pdf': doc.file_path_uz_pdf if lang == 'uz' else doc.file_path_ru_pdf,
+                'file_path_docx': doc.file_path_uz_docx if lang == 'uz' else doc.file_path_ru_docx,
+            })
+
+        return result_docs
+
+
 async def get_info_documents(lang: str):
     """Ma'lumot hujjatlarni qaytaradi (is_template='false')."""
     async with async_session_maker() as session:
