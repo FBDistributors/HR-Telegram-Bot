@@ -285,8 +285,7 @@ async def send_template_by_category(callback: CallbackQuery, state: FSMContext, 
             file = FSInputFile(file_path, filename=f"{doc_name}.pdf")
             await bot.send_document(chat_id=callback.from_user.id, document=file)
             logging.info(f"Fayl muvaffaqiyatli yuborildi: {file_path}")
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=texts[lang]['back_to_template_categories'], callback_data='doc_back_template_categories')]
             ])
             await callback.message.edit_text("✅ Hujjat yuborildi.", reply_markup=keyboard)
