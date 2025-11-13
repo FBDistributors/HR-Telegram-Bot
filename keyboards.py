@@ -10,6 +10,7 @@ texts = {
         'apply_button': "📝 Ariza topshirish",
         'faq_button': "❓ Savol berish (FAQ)",
         'documents_button': "📄 Hujjatlar",
+        'products_button': "🛍️ Mahsulotlar",
         'suggestion_button': "💬 Taklif va shikoyatlar",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 E'lon yuborish",
@@ -138,6 +139,13 @@ texts = {
         'doc_added_success': "✅ Hujjat muvaffaqiyatli qo'shildi!",
         'doc_add_cancelled': "❌ Hujjat qo'shish bekor qilindi.",
         'doc_add_error': "❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+        # --- MAHSULOT KATALOGI ---
+        'products_choose_brand': "🛍️ Qaysi brend mahsulotlarini ko'rmoqchisiz?",
+        'products_no_brands': "Hozircha brendlar ro'yxati bo'sh.",
+        'products_list_header': "🛍️ {brand} mahsulotlari",
+        'products_video_hint': "Quyidagi tugmalardan birini bosing — YouTube roligi ochiladi.",
+        'products_no_products': "Bu brend uchun mahsulotlar hozircha mavjud emas.",
+        'products_back_to_brands': "⬅️ Brendlarga qaytish",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Sen tajribali HR-menejersan. Quyida nomzodning suhbat orqali bergan javoblari keltirilgan.
@@ -168,6 +176,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'apply_button': "📝 Подать заявку",
         'faq_button': "❓ Задать вопрос (FAQ)",
         'documents_button': "📄 Документы",
+        'products_button': "🛍️ Товары",
         'suggestion_button': "💬 Предложения и жалобы",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 Отправить объявление",
@@ -292,6 +301,13 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'doc_added_success': "✅ Документ успешно добавлен!",
         'doc_add_cancelled': "❌ Добавление документа отменено.",
         'doc_add_error': "❌ Произошла ошибка. Пожалуйста, попробуйте еще раз.",
+        # --- КАТАЛОГ ТОВАРОВ ---
+        'products_choose_brand': "🛍️ Выберите бренд, чьи товары хотите посмотреть:",
+        'products_no_brands': "Список брендов пока пуст.",
+        'products_list_header': "🛍️ Товары бренда {brand}",
+        'products_video_hint': "Нажмите на кнопку товара — откроется ролик на YouTube.",
+        'products_no_products': "Для этого бренда пока нет товаров.",
+        'products_back_to_brands': "⬅️ Вернуться к брендам",
 
         # --- SUN'IY INTELLEKT UCHUN PROMPTLAR (TO'LDIRILDI) ---
         'gemini_convo_prompt': """Ты опытный HR-менеджер. Ниже приведены ответы кандидата из чата.
@@ -322,7 +338,8 @@ def get_user_keyboard(lang: str = 'uz'):
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
-            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['suggestion_button'])]
+            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['products_button'])],
+            [KeyboardButton(text=texts[lang]['suggestion_button'])]
         ],
         resize_keyboard=True
     )
@@ -345,7 +362,8 @@ def get_admin_main_keyboard(lang: str = 'uz'):
         keyboard=[
             # Oddiy foydalanuvchi tugmalarini ham qo'shamiz
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
-            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['suggestion_button'])],
+            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['products_button'])],
+            [KeyboardButton(text=texts[lang]['suggestion_button'])],
             # Admin tugmalari
             [KeyboardButton(text=texts[lang]['kb_update_button']), KeyboardButton(text=texts[lang]['broadcast_button'])],
             [KeyboardButton(text=texts[lang]['add_document_button'])],

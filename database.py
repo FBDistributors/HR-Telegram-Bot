@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 import logging
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, BigInteger, select, delete
+from sqlalchemy import Column, Integer, String, Text, BigInteger, select, delete, ForeignKey
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import ssl
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
 # .env faylini yuklab olish (database moduliga to'g'ridan-to'g'ri import qilinganda ham ishlashi uchun)
 load_dotenv()
@@ -125,6 +125,31 @@ class Document(Base):
     created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
+class ProductBrand(Base):
+    __tablename__ = 'product_brands'
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    products = relationship(
+        "Product",
+        back_populates="brand",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class Product(Base):
+    __tablename__ = 'products'
+    id = Column(Integer, primary_key=True)
+    brand_id = Column(Integer, ForeignKey("product_brands.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    youtube_url = Column(String, nullable=False)
+    product_code = Column(String, nullable=True)
+    display_order = Column(String, nullable=True)
+    created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    brand = relationship("ProductBrand", back_populates="products")
+
 
 # --- ASOSIY FUNKSIYALAR ---
 async def init_db():
@@ -184,6 +209,28 @@ async def _migrate_documents_table(conn) -> None:
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_admin VARCHAR DEFAULT 'false'",
         # SuggestionMessage jadvaliga original_text ustuni qo'shish
         "ALTER TABLE suggestion_messages ADD COLUMN IF NOT EXISTS original_text TEXT",
+        # Mahsulot katalogi uchun jadvallar
+        """
+        CREATE TABLE IF NOT EXISTS product_brands (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR NOT NULL UNIQUE,
+            description TEXT NULL,
+            created_at VARCHAR DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS products (
+            id SERIAL PRIMARY KEY,
+            brand_id INTEGER NOT NULL REFERENCES product_brands(id) ON DELETE CASCADE,
+            name VARCHAR NOT NULL,
+            youtube_url VARCHAR NOT NULL,
+            product_code VARCHAR NULL,
+            display_order VARCHAR NULL,
+            created_at VARCHAR DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        "ALTER TABLE products ADD COLUMN IF NOT EXISTS product_code VARCHAR",
+        "ALTER TABLE products ALTER COLUMN display_order TYPE VARCHAR USING display_order::VARCHAR",
     ]
 
     for stmt in alter_statements:
@@ -723,3 +770,38 @@ async def get_debt_documents():
         )
         documents = result.scalars().all()
         return documents        
+
+
+# --- MAHSULOT KATALOGI FUNKSIYALARI ---
+
+
+async def get_all_product_brands() -> list[ProductBrand]:
+    """Barcha brendlarni nomi bo'yicha tartiblab qaytaradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(ProductBrand).order_by(ProductBrand.name.asc())
+        )
+        return result.scalars().all()
+
+
+async def get_product_brand(brand_id: int) -> ProductBrand | None:
+    """Berilgan ID bo'yicha brendni qaytaradi."""
+    async with async_session_maker() as session:
+        return await session.get(ProductBrand, brand_id)
+
+
+async def get_products_by_brand(brand_id: int) -> list[Product]:
+    """Brendga tegishli mahsulotlarni tartiblab qaytaradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Product)
+            .where(Product.brand_id == brand_id)
+            .order_by(Product.display_order.asc(), Product.name.asc())
+        )
+        return result.scalars().all()
+
+
+async def get_product(product_id: int) -> Product | None:
+    """Mahsulot ID bo'yicha yozuvni topadi."""
+    async with async_session_maker() as session:
+        return await session.get(Product, product_id)
