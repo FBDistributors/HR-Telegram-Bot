@@ -160,7 +160,7 @@ async def handle_admin_request_choice(callback: CallbackQuery, state: FSMContext
         username = callback.from_user.username
         
         # Telefon raqamni bazadan olish
-        phone_number = "Kiritilmagan"
+        phone_number = None
         try:
             from sqlalchemy import select
             from database import User, async_session_maker
@@ -172,6 +172,22 @@ async def handle_admin_request_choice(callback: CallbackQuery, state: FSMContext
                     phone_number = user.phone_number
         except Exception as e:
             logging.error(f"Telefon raqamni olishda xatolik: {e}")
+        
+        # Agar telefon raqam bo'lmasa, foydalanuvchidan so'ramiz
+        if not phone_number:
+            contact_keyboard = ReplyKeyboardMarkup(
+                keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+            await callback.message.answer(
+                "Iltimos, admin'ga so'rov yuborish uchun kontaktingizni yuboring:",
+                reply_markup=contact_keyboard
+            )
+            await state.update_data(pending_admin_request=True)
+            await state.set_state(MainForm.employee_verification)
+            await callback.answer()
+            return
         
         # Admin'ga so'rov yuborish (faqat bir kishiga)
         ADMIN_TELEGRAM_ID = 7428788767  # Admin Telegram ID
@@ -336,8 +352,8 @@ async def handle_reject_employee(callback: CallbackQuery, state: FSMContext, bot
 
 
 @dp.message(MainForm.employee_verification, F.contact)
-async def process_employee_verification(message: Message, state: FSMContext):
-    """Xodimlar uchun telefon raqam orqali xavfsizlik tekshiruvi"""
+async def process_employee_verification(message: Message, state: FSMContext, bot: Bot):
+    """Xodimlar uchun telefon raqam orqali xavfsizlik tekshiruvi yoki admin'ga so'rov yuborish"""
     lang = await get_user_lang(state)
     user_id = message.from_user.id
     phone_number = message.contact.phone_number
@@ -348,6 +364,47 @@ async def process_employee_verification(message: Message, state: FSMContext):
     except Exception:
         pass
     
+    # Agar admin'ga so'rov yuborish kutilayotgan bo'lsa
+    user_data = await state.get_data()
+    if user_data.get('pending_admin_request'):
+        # Admin'ga so'rov yuborish
+        full_name = message.from_user.full_name
+        username = message.from_user.username
+        ADMIN_TELEGRAM_ID = 7428788767  # Admin Telegram ID
+        
+        admin_message = (
+            f"🔔 **Yangi xodim so'rovi**\n\n"
+            f"👤 **FIO:** {full_name}\n"
+        )
+        if username:
+            admin_message += f"📱 **Username:** @{username}\n"
+        admin_message += f"📞 **Telefon:** {phone_number}\n"
+        admin_message += f"🆔 **Telegram ID:** {user_id}\n\n"
+        admin_message += f"Bu foydalanuvchi o'zini kompaniya xodimi deb tanlagan, lekin employees jadvalida topilmadi."
+        
+        try:
+            approve_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"approve_employee_{user_id}")],
+                [InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_employee_{user_id}")]
+            ])
+            await bot.send_message(
+                chat_id=ADMIN_TELEGRAM_ID,
+                text=admin_message,
+                parse_mode="Markdown",
+                reply_markup=approve_keyboard
+            )
+            await message.answer(texts[lang]['request_sent_to_admin'], reply_markup=ReplyKeyboardRemove())
+            await state.update_data(pending_admin_request=False, user_type='external')
+            await show_main_menu(message, state, user_id, lang)
+            return
+        except Exception as e:
+            logging.error(f"Admin {ADMIN_TELEGRAM_ID} ga so'rov yuborib bo'lmadi: {e}")
+            await message.answer("Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Iltimos, qayta urinib ko'ring.", reply_markup=ReplyKeyboardRemove())
+            await state.update_data(pending_admin_request=False, user_type='external')
+            await show_main_menu(message, state, user_id, lang)
+            return
+    
+    # Oddiy xavfsizlik tekshiruvi
     # Telefon raqam orqali xodimni tekshirish
     is_authorized = await db.verify_employee_by_phone(phone_number, user_id)
     
