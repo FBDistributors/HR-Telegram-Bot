@@ -5,6 +5,9 @@ from aiogram.fsm.state import State, StatesGroup
 # Asosiy bot uchun holatlar
 class MainForm(StatesGroup):
     language_selection = State()
+    user_type_selection = State()  # Xodim/xodim emas tanlash
+    employee_verification = State()  # Xodimlar uchun xavfsizlik tekshiruvi
+    external_contact = State()  # Tashqi shaxslar uchun kontakt
     main_menu = State()
 
 # FAQ bo'limi uchun holatlar
@@ -38,7 +41,9 @@ class KnowledgeBaseAdmin(StatesGroup):
 
 # Taklif va shikoyatlar uchun holatlar
 class SuggestionForm(StatesGroup):
-    waiting_text = State()
+    type_selection = State()  # Taklif/shikoyat tanlash
+    waiting_complaint = State()  # Shikoyat matni
+    waiting_suggestion = State()  # Taklif matni
 
 # Hujjatlar bo'limi uchun holatlar
 class DocumentForm(StatesGroup):

@@ -7,11 +7,26 @@ texts = {
     'uz': {
         'welcome_lang': "Assalomu alaykum! Muloqot uchun qulay tilni tanlang.",
         'welcome_menu': "Kerakli bo'limni tanlang:",
+        'ask_user_type': "Siz kompaniya xodimisiz yoki yo'qmi?",
+        'employee_button': "✅ Kompaniya xodimi",
+        'external_button': "👤 Kompaniya xodimi emas",
+        'employee_verification_prompt': "Xavfsizlik uchun shaxsingizni tasdiqlang. Iltimos, kontaktingizni yuboring:",
+        'external_contact_prompt': "Iltimos, kontaktingizni yuboring:",
+        'verification_fail': "Kechirasiz, siz kompaniya xodimi sifatida topilmadingiz. Iltimos, qayta urinib ko'ring.",
+        'ask_suggestion_type': "Taklif yoki shikoyat qilmoqchimisiz?",
+        'suggestion_type_button': "💡 Taklif",
+        'complaint_type_button': "⚠️ Shikoyat",
+        'employee_not_found': "Siz kompaniya xodimi sifatida topilmadingiz. Admin'ga so'rov yuborishni xohlaysizmi?",
+        'send_request_to_admin_button': "📤 Admin'ga so'rov yuborish",
+        'skip_request_button': "⏭️ O'tkazib yuborish",
+        'request_sent_to_admin': "So'rovingiz admin'ga yuborildi. Tez orada javob beriladi.",
+        'request_skipped': "So'rov bekor qilindi.",
         'apply_button': "📝 Ariza topshirish",
         'faq_button': "❓ Savol berish (FAQ)",
         'documents_button': "📄 Hujjatlar",
         'products_button': "🛍️ Mahsulotlar",
         'suggestion_button': "💬 Taklif va shikoyatlar",
+        'support_center_button': "🆘 Qo'llab quvvatlash markazi",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 E'lon yuborish",
         'ask_name': "To'liq ism-sharifingizni kiriting (masalan, Olimov Salim).",
@@ -80,9 +95,12 @@ texts = {
         'kb_update_fail_parsing': "❌ Faylni o'qishda xatolik yuz berdi. Iltimos, fayl formati to'g'riligini tekshiring (sarlavhalar `=== Sarlavha ===` ko'rinishida bo'lishi kerak).",
 
         # --- TAKLIF VA SHIKOYATLAR BO'LIMI ---
-        'ask_suggestion_text': "Taklifingiz yoki shikoyatingizni yozing:",
+        'ask_suggestion_text': "Taklifingizni yozing:",
+        'ask_complaint_text': "Shikoyatingizni yozing:",
         'suggestion_thanks': "Xabaringiz qabul qilindi, rahmat!",
-        'hr_new_suggestion': "Yangi taklif/shikoyat!",
+        'hr_new_suggestion': "Yangi taklif!",
+        'hr_new_complaint': "Yangi shikoyat!",
+        'hr_anonymous_complaint': "Yangi anonim shikoyat!",
         'hr_reply_prefix': "HR jamoasidan javob:",
         'hr_reply_instruction': "👆 Javob berish uchun shu xabarni reply qiling",
         'hr_reply_to_suggestion': "Sizning \"{original}\" xabaringizga javob:",
@@ -173,11 +191,26 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
     'ru': {
         'welcome_lang': "Здравствуйте! Пожалуйста, выберите удобный язык для общения.",
         'welcome_menu': "Пожалуйста, выберите нужный раздел:",
+        'ask_user_type': "Вы сотрудник компании или нет?",
+        'employee_button': "✅ Сотрудник компании",
+        'external_button': "👤 Не сотрудник компании",
+        'employee_verification_prompt': "Для безопасности подтвердите свою личность. Пожалуйста, отправьте свой контакт:",
+        'external_contact_prompt': "Пожалуйста, отправьте свой контакт:",
+        'verification_fail': "К сожалению, вы не найдены как сотрудник компании. Пожалуйста, попробуйте снова.",
+        'ask_suggestion_type': "Хотите оставить предложение или жалобу?",
+        'suggestion_type_button': "💡 Предложение",
+        'complaint_type_button': "⚠️ Жалоба",
+        'employee_not_found': "Вы не найдены как сотрудник компании. Хотите отправить запрос администратору?",
+        'send_request_to_admin_button': "📤 Отправить запрос администратору",
+        'skip_request_button': "⏭️ Пропустить",
+        'request_sent_to_admin': "Ваш запрос отправлен администратору. Ответ будет дан в ближайшее время.",
+        'request_skipped': "Запрос отменен.",
         'apply_button': "📝 Подать заявку",
         'faq_button': "❓ Задать вопрос (FAQ)",
         'documents_button': "📄 Документы",
         'products_button': "🛍️ Товары",
         'suggestion_button': "💬 Предложения и жалобы",
+        'support_center_button': "🆘 Центр поддержки",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 Отправить объявление",
         'ask_name': "Введите Ваши полные имя и фамилию (например, Салимов Олим).",
@@ -242,9 +275,12 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'kb_update_fail_parsing': "❌ Произошла ошибка при чтении файла. Пожалуйста, проверьте правильность формата файла (заголовки должны быть в виде `=== Заголовок ===`).",
 
         # --- РАЗДЕЛ ПРЕДЛОЖЕНИЙ И ЖАЛОБ ---
-        'ask_suggestion_text': "Напишите ваше предложение или жалобу:",
+        'ask_suggestion_text': "Напишите ваше предложение:",
+        'ask_complaint_text': "Напишите вашу жалобу:",
         'suggestion_thanks': "Ваше сообщение принято, спасибо!",
-        'hr_new_suggestion': "Новое предложение/жалоба!",
+        'hr_new_suggestion': "Новое предложение!",
+        'hr_new_complaint': "Новая жалоба!",
+        'hr_anonymous_complaint': "Новая анонимная жалоба!",
         'hr_reply_prefix': "Ответ от HR команды:",
         'hr_reply_instruction': "👆 Для ответа сделайте reply на это сообщение",
         'hr_reply_to_suggestion': "Ответ на ваше сообщение \"{original}\":",
@@ -335,6 +371,27 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
 
 def get_user_keyboard(lang: str = 'uz'):
     """Oddiy foydalanuvchi uchun menyu klaviaturasini qaytaradi."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
+            [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['products_button'])],
+            [KeyboardButton(text=texts[lang]['suggestion_button'])]
+        ],
+        resize_keyboard=True
+    )
+
+def get_external_user_keyboard(lang: str = 'uz'):
+    """Xodim bo'lmaganlar uchun menyu klaviaturasini qaytaradi (faqat 2 ta bo'lim)."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=texts[lang]['apply_button'])],
+            [KeyboardButton(text=texts[lang]['support_center_button'])]
+        ],
+        resize_keyboard=True
+    )
+
+def get_employee_keyboard(lang: str = 'uz'):
+    """Xodimlar uchun menyu klaviaturasini qaytaradi (barcha bo'limlar)."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],

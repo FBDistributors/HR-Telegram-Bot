@@ -354,6 +354,16 @@ async def is_employee_by_tg_id(telegram_id: int) -> bool:
         return employee is not None
 
 
+async def get_employee_by_telegram_id(telegram_id: int):
+    """Berilgan Telegram ID bo'yicha xodimning to'liq ma'lumotlarini qaytaradi."""
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Employee).filter(Employee.telegram_id == telegram_id)
+        )
+        employee = result.scalars().first()
+        return employee
+
+
 # --- ADMIN BOSHQARUV FUNKSIYALARI ---
 
 async def is_admin(user_id: int) -> bool:

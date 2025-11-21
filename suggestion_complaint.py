@@ -5,10 +5,10 @@ import logging
 from aiogram import Bot, Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from states import MainForm, SuggestionForm
-from keyboards import texts, get_user_keyboard, get_admin_main_keyboard
+from keyboards import texts, get_user_keyboard, get_admin_main_keyboard, get_external_user_keyboard, get_employee_keyboard
 import database as db
 
 router = Router()
@@ -24,135 +24,178 @@ async def get_user_lang(state: FSMContext):
 
 # --- TAKLIF VA SHIKOYATLAR BO'LIMI ---
 
-@router.message(F.text.in_([texts['uz']['suggestion_button'], texts['ru']['suggestion_button']]))
+@router.message(F.text.in_([texts['uz']['suggestion_button'], texts['ru']['suggestion_button'],
+                            texts['uz']['support_center_button'], texts['ru']['support_center_button']]))
 async def handle_suggestion_button(message: Message, state: FSMContext):
-    """Taklif va shikoyatlar tugmasi bosilganda"""
+    """Taklif va shikoyatlar yoki Qo'llab quvvatlash markazi tugmasi bosilganda"""
     lang = await get_user_lang(state)
-    await message.answer(texts[lang]['ask_suggestion_text'])
-    await state.set_state(SuggestionForm.waiting_text)
+    user_data = await state.get_data()
+    user_type = user_data.get('user_type', 'external')
+    
+    # Taklif/shikoyat tanlash
+    type_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=texts[lang]['suggestion_type_button'], callback_data="suggestion_type_suggestion")],
+        [InlineKeyboardButton(text=texts[lang]['complaint_type_button'], callback_data="suggestion_type_complaint")]
+    ])
+    
+    await message.answer(texts[lang]['ask_suggestion_type'], reply_markup=type_keyboard)
+    await state.set_state(SuggestionForm.type_selection)
 
 
-@router.message(Command("suggest"))
-async def handle_suggestion_command(message: Message, state: FSMContext):
-    """Alternative entry via /suggest command"""
+@router.callback_query(SuggestionForm.type_selection, F.data.startswith('suggestion_type_'))
+async def process_suggestion_type_selection(callback: CallbackQuery, state: FSMContext):
+    """Taklif yoki shikoyat tanlash"""
+    suggestion_type = callback.data.split('_')[2]  # 'suggestion' yoki 'complaint'
     lang = await get_user_lang(state)
-    await message.answer(texts[lang]['ask_suggestion_text'])
-    await state.set_state(SuggestionForm.waiting_text)
+    
+    await callback.message.delete()
+    
+    if suggestion_type == 'suggestion':
+        await callback.message.answer(texts[lang]['ask_suggestion_text'])
+        await state.set_state(SuggestionForm.waiting_suggestion)
+    else:
+        await callback.message.answer(texts[lang]['ask_complaint_text'])
+        await state.set_state(SuggestionForm.waiting_complaint)
+    
+    await callback.answer()
 
 
-@router.message(SuggestionForm.waiting_text, F.text)
+@router.message(SuggestionForm.waiting_suggestion, F.text)
 async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot):
-    """Taklif/shikoyat matnini qabul qilish va HR guruhiga yuborish"""
+    """Taklif matnini qabul qilish va HR guruhiga yuborish"""
     lang = await get_user_lang(state)
     suggestion_text = message.text
-    
-    # Foydalanuvchi ma'lumotlarini olish
-    full_name = message.from_user.full_name
-    username = message.from_user.username
+    user_data = await state.get_data()
+    user_type = user_data.get('user_type', 'external')
     user_id = message.from_user.id
     
-    # Telefon raqamini bazadan olish (agar mavjud bo'lsa)
-    phone_number = "Kiritilmagan"
-    try:
-        # Users jadvalidan telefon raqamini topish
-        from sqlalchemy import select
-        from database import User, async_session_maker
-        
-        async with async_session_maker() as session:
-            result = await session.execute(select(User).filter(User.user_id == user_id))
-            user = result.scalars().first()
-            if user and user.phone_number:
-                phone_number = user.phone_number
-    except Exception as e:
-        logging.error(f"Telefon raqamni olishda xatolik: {e}")
-    
-    # Agar telefon yo'q bo'lsa, foydalanuvchidan kontakt so'rash imkoniyati
-    if phone_number == "Kiritilmagan":
-        contact_keyboard = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text=texts[lang]['button_share_contact'], request_contact=True)]],
-            resize_keyboard=True,
-            one_time_keyboard=True
-        )
-        await message.answer(texts[lang]['ask_contact'], reply_markup=contact_keyboard)
-        # Xabarni state'ga vaqtincha saqlab turamiz
-        await state.update_data(pending_suggestion_text=suggestion_text)
-        return
-
     # HR guruhiga yuborish
     if HR_GROUP_ID:
         hr_notification = f"🆕 **{texts[lang]['hr_new_suggestion']}**\n\n"
-        hr_notification += f"👤 **Foydalanuvchi:** {full_name}"
         
-        if username:
-            hr_notification += f" (@{username})"
+        if user_type == 'employee':
+            # Xodimlar uchun to'liq ma'lumot (employees jadvalidan)
+            employee = await db.get_employee_by_telegram_id(user_id)
+            if employee:
+                hr_notification += f"👤 **FIO:** {employee.full_name}\n"
+                hr_notification += f"💼 **Lavozim:** {employee.position or 'Kiritilmagan'}\n"
+                hr_notification += f"📱 **Telefon:** {employee.phone_number}\n"
+            else:
+                # Agar employees jadvalida topilmasa, Telegram ma'lumotlaridan foydalanamiz
+                hr_notification += f"👤 **FIO:** {message.from_user.full_name}\n"
+                if message.from_user.username:
+                    hr_notification += f"📱 **Username:** @{message.from_user.username}\n"
+        else:
+            # Tashqi shaxslar uchun to'liq ma'lumot
+            full_name = message.from_user.full_name
+            username = message.from_user.username
+            
+            # Telefon raqamni bazadan olish
+            phone_number = "Kiritilmagan"
+            try:
+                from sqlalchemy import select
+                from database import User, async_session_maker
+                
+                async with async_session_maker() as session:
+                    result = await session.execute(select(User).filter(User.user_id == user_id))
+                    user = result.scalars().first()
+                    if user and user.phone_number:
+                        phone_number = user.phone_number
+            except Exception as e:
+                logging.error(f"Telefon raqamni olishda xatolik: {e}")
+            
+            hr_notification += f"👤 **FIO:** {full_name}\n"
+            if username:
+                hr_notification += f"📱 **Username:** @{username}\n"
+            hr_notification += f"📞 **Telefon:** {phone_number}\n"
         
-        hr_notification += f"\n📱 **Telefon:** {phone_number}\n\n"
-        hr_notification += f"💬 **Xabar matni:**\n\"{suggestion_text}\"\n\n"
+        hr_notification += f"\n💬 **Taklif matni:**\n\"{suggestion_text}\"\n\n"
         hr_notification += f"**{texts[lang]['hr_reply_instruction']}**"
         
         try:
             sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
-            logging.info(f"Taklif/shikoyat HR guruhiga yuborildi. User ID: {user_id}")
-            # HR guruhidagi xabar ID sini bazaga saqlash
+            logging.info(f"Taklif HR guruhiga yuborildi. User ID: {user_id}, Type: {user_type}")
             await db.save_suggestion_message(user_id, sent_message.message_id, lang, suggestion_text)
         except Exception as e:
-            logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
+            logging.error(f"HR guruhiga taklif yuborishda xatolik: {e}")
     
     # Foydalanuvchiga tasdiq xabari
     await message.answer(texts[lang]['suggestion_thanks'])
     
     # Asosiy menyuga qaytish
-    if await db.is_admin(user_id):
-        keyboard = get_admin_main_keyboard(lang)
-    else:
-        keyboard = get_user_keyboard(lang)
-    
-    await message.answer(texts[lang]['welcome_menu'], reply_markup=keyboard)
-    await state.set_state(MainForm.main_menu)
+    await show_main_menu_back(message, state, user_id, lang)
 
 
-@router.message(SuggestionForm.waiting_text, F.contact)
-async def process_suggestion_contact(message: Message, state: FSMContext, bot: Bot):
-    """Agar telefon so'ralgan bo'lsa, kontakt kelganda HRga xabarni yuborish"""
+@router.message(SuggestionForm.waiting_complaint, F.text)
+async def process_complaint_text(message: Message, state: FSMContext, bot: Bot):
+    """Shikoyat matnini qabul qilish va HR guruhiga yuborish"""
     lang = await get_user_lang(state)
+    complaint_text = message.text
     user_data = await state.get_data()
-    suggestion_text = user_data.get('pending_suggestion_text', '')
-
-    # Raqamni bazaga saqlab qo'yamiz
-    try:
-        await db.update_user_phone_number(message.from_user.id, message.contact.phone_number)
-    except Exception:
-        pass
-
-    full_name = message.from_user.full_name
-    username = message.from_user.username
-    phone_number = message.contact.phone_number or "Kiritilmagan"
-
+    user_type = user_data.get('user_type', 'external')
+    user_id = message.from_user.id
+    
+    # HR guruhiga yuborish
     if HR_GROUP_ID:
-        hr_notification = (
-            f"🔔 **{texts[lang]['hr_new_suggestion']}**\n\n"
-            f"👤 **FIO:** {full_name}"
-        )
-        if username:
-            hr_notification += f" (@{username})"
-        hr_notification += (
-            f"\n📱 **Telefon:** {phone_number}\n"
-            f"-------------------\n"
-            f"📝 **Xabar:**\n{suggestion_text}"
-        )
+        if user_type == 'employee':
+            # Xodimlar uchun anonim shikoyat
+            hr_notification = f"🔔 **{texts[lang]['hr_anonymous_complaint']}**\n\n"
+            hr_notification += f"⚠️ **Shikoyat matni:**\n\"{complaint_text}\"\n\n"
+            hr_notification += f"**{texts[lang]['hr_reply_instruction']}**"
+        else:
+            # Tashqi shaxslar uchun to'liq ma'lumot
+            hr_notification = f"🔔 **{texts[lang]['hr_new_complaint']}**\n\n"
+            
+            full_name = message.from_user.full_name
+            username = message.from_user.username
+            
+            # Telefon raqamni bazadan olish
+            phone_number = "Kiritilmagan"
+            try:
+                from sqlalchemy import select
+                from database import User, async_session_maker
+                
+                async with async_session_maker() as session:
+                    result = await session.execute(select(User).filter(User.user_id == user_id))
+                    user = result.scalars().first()
+                    if user and user.phone_number:
+                        phone_number = user.phone_number
+            except Exception as e:
+                logging.error(f"Telefon raqamni olishda xatolik: {e}")
+            
+            hr_notification += f"👤 **FIO:** {full_name}\n"
+            if username:
+                hr_notification += f"📱 **Username:** @{username}\n"
+            hr_notification += f"📞 **Telefon:** {phone_number}\n"
+            hr_notification += f"\n⚠️ **Shikoyat matni:**\n\"{complaint_text}\"\n\n"
+            hr_notification += f"**{texts[lang]['hr_reply_instruction']}**"
+        
         try:
             sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="Markdown")
-            # HR guruhidagi xabar ID sini bazaga saqlash
-            await db.save_suggestion_message(message.from_user.id, sent_message.message_id, lang, suggestion_text)
+            logging.info(f"Shikoyat HR guruhiga yuborildi. User ID: {user_id}, Type: {user_type}")
+            await db.save_suggestion_message(user_id, sent_message.message_id, lang, complaint_text)
         except Exception as e:
-            logging.error(f"HR guruhiga taklif/shikoyat yuborishda xatolik: {e}")
+            logging.error(f"HR guruhiga shikoyat yuborishda xatolik: {e}")
+    
+    # Foydalanuvchiga tasdiq xabari
+    await message.answer(texts[lang]['suggestion_thanks'])
+    
+    # Asosiy menyuga qaytish
+    await show_main_menu_back(message, state, user_id, lang)
 
-    await message.answer(texts[lang]['suggestion_thanks'], reply_markup=ReplyKeyboardRemove())
 
-    if await db.is_admin(message.from_user.id):
+async def show_main_menu_back(message: Message, state: FSMContext, user_id: int, lang: str):
+    """Foydalanuvchi turiga qarab asosiy menyuga qaytish"""
+    user_data = await state.get_data()
+    user_type = user_data.get('user_type', 'external')
+    
+    if await db.is_admin(user_id):
         keyboard = get_admin_main_keyboard(lang)
+    elif user_type == 'employee':
+        keyboard = get_employee_keyboard(lang)
     else:
-        keyboard = get_user_keyboard(lang)
+        keyboard = get_external_user_keyboard(lang)
+    
     await message.answer(texts[lang]['welcome_menu'], reply_markup=keyboard)
     await state.set_state(MainForm.main_menu)
 
@@ -208,4 +251,3 @@ async def handle_hr_group_reply(message: Message, bot: Bot):
         
     except Exception as e:
         logging.error(f"HR guruh javobini ishlashda xatolik: {e}")
-
