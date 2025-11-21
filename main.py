@@ -208,16 +208,43 @@ async def handle_admin_request_choice(callback: CallbackQuery, state: FSMContext
                 [InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"approve_employee_{user_id}")],
                 [InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_employee_{user_id}")]
             ])
+            # Markdown parse_mode'da muammo bo'lishi mumkin, shuning uchun HTML ishlatamiz
+            admin_message_html = (
+                f"🔔 <b>Yangi xodim so'rovi</b>\n\n"
+                f"👤 <b>FIO:</b> {full_name}\n"
+            )
+            if username:
+                admin_message_html += f"📱 <b>Username:</b> @{username}\n"
+            admin_message_html += f"📞 <b>Telefon:</b> {phone_number}\n"
+            admin_message_html += f"🆔 <b>Telegram ID:</b> {user_id}\n\n"
+            admin_message_html += f"Bu foydalanuvchi o'zini kompaniya xodimi deb tanlagan, lekin employees jadvalida topilmadi."
+            
             await bot.send_message(
                 chat_id=ADMIN_TELEGRAM_ID,
-                text=admin_message,
-                parse_mode="Markdown",
+                text=admin_message_html,
+                parse_mode="HTML",
                 reply_markup=approve_keyboard
             )
             await callback.message.answer(texts[lang]['request_sent_to_admin'])
         except Exception as e:
-            logging.error(f"Admin {ADMIN_TELEGRAM_ID} ga so'rov yuborib bo'lmadi: {e}")
-            await callback.message.answer("Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Iltimos, qayta urinib ko'ring.")
+            error_msg = str(e)
+            logging.error(f"Admin {ADMIN_TELEGRAM_ID} ga so'rov yuborib bo'lmadi: {error_msg}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            # Aniqroq xabar
+            if "chat not found" in error_msg.lower() or "user not found" in error_msg.lower():
+                await callback.message.answer(
+                    "Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Admin botni start qilgan bo'lishi kerak. "
+                    "Iltimos, admin'ga botni start qilishni so'rang."
+                )
+            elif "blocked" in error_msg.lower():
+                await callback.message.answer(
+                    "Kechirasiz, admin botni bloklagan. Iltimos, admin'ga botni blokdan olib tashlashni so'rang."
+                )
+            else:
+                await callback.message.answer(
+                    f"Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Xatolik: {error_msg[:100]}. "
+                    "Iltimos, qayta urinib ko'ring yoki admin bilan bog'laning."
+                )
         
         # Foydalanuvchini tashqi shaxs sifatida davom ettirish
         await state.update_data(user_type='external')
@@ -287,6 +314,71 @@ async def handle_approve_employee(callback: CallbackQuery, state: FSMContext, bo
                             # Hech qanday mavjud emas, yangi qo'shamiz
                             # Telefon raqam unique bo'lishi kerak, shuning uchun user_id bilan birga unique qilamiz
                             phone_for_db = user.phone_number if user.phone_number else f"no_phone_{user_id}"
+                            
+                            # Avval telefon raqam bilan mavjudligini tekshiramiz (unique constraint uchun)
+                            check_phone = await session.execute(
+                                select(Employee).filter(Employee.phone_number == phone_for_db)
+                            )
+                            if check_phone.scalars().first():
+                                # Agar telefon raqam allaqachon mavjud bo'lsa, yangi unique qilamiz
+                                phone_for_db = f"{phone_for_db}_{user_id}"
+                            
+                            # Avval mavjudligini to'liq tekshiramiz
+                            # Agar telefon raqam yoki telegram_id bo'yicha mavjud bo'lsa, yangilaymiz
+                            existing_check = await session.execute(
+                                select(Employee).filter(
+                                    (Employee.phone_number == phone_for_db) |
+                                    (Employee.telegram_id == user_id)
+                                )
+                            )
+                            existing = existing_check.scalars().first()
+                            
+                            if existing:
+                                # Mavjud bo'lsa, yangilaymiz
+                                existing.full_name = user.full_name
+                                existing.phone_number = phone_for_db
+                                existing.telegram_id = user_id
+                                if not existing.position or existing.position == "Kiritilmagan":
+                                    existing.position = "Kiritilmagan"
+                                await session.commit()
+                                employee_name = existing.full_name
+                            else:
+                                # Mavjud bo'lmasa, yangi qo'shamiz
+                                # SQLAlchemy ORM ishlatamiz, lekin id ni ko'rsatmaymiz
+                                new_employee = Employee(
+                                    full_name=user.full_name,
+                                    phone_number=phone_for_db,
+                                    telegram_id=user_id,
+                                    position="Kiritilmagan",
+                                    is_admin='false'
+                                )
+                                session.add(new_employee)
+                                await session.commit()
+                                employee_name = user.full_name
+                    else:
+                        # Telefon raqam ham yo'q, yangi qo'shamiz
+                        phone_for_db = f"no_phone_{user_id}"
+                        
+                        # Avval mavjudligini tekshiramiz
+                        existing_check = await session.execute(
+                            select(Employee).filter(
+                                (Employee.phone_number == phone_for_db) |
+                                (Employee.telegram_id == user_id)
+                            )
+                        )
+                        existing = existing_check.scalars().first()
+                        
+                        if existing:
+                            # Mavjud bo'lsa, yangilaymiz
+                            existing.full_name = user.full_name
+                            existing.phone_number = phone_for_db
+                            existing.telegram_id = user_id
+                            if not existing.position or existing.position == "Kiritilmagan":
+                                existing.position = "Kiritilmagan"
+                            await session.commit()
+                            employee_name = existing.full_name
+                        else:
+                            # Mavjud bo'lmasa, yangi qo'shamiz
                             new_employee = Employee(
                                 full_name=user.full_name,
                                 phone_number=phone_for_db,
@@ -297,20 +389,6 @@ async def handle_approve_employee(callback: CallbackQuery, state: FSMContext, bo
                             session.add(new_employee)
                             await session.commit()
                             employee_name = user.full_name
-                    else:
-                        # Telefon raqam ham yo'q, yangi qo'shamiz
-                        # Telefon raqam unique bo'lishi kerak, shuning uchun user_id bilan birga unique qilamiz
-                        phone_for_db = f"no_phone_{user_id}"
-                        new_employee = Employee(
-                            full_name=user.full_name,
-                            phone_number=phone_for_db,
-                            telegram_id=user_id,
-                            position="Kiritilmagan",
-                            is_admin='false'
-                        )
-                        session.add(new_employee)
-                        await session.commit()
-                        employee_name = user.full_name
                 
                 # Foydalanuvchiga xabar yuborish
                 await bot.send_message(
@@ -387,10 +465,21 @@ async def process_employee_verification(message: Message, state: FSMContext, bot
                 [InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"approve_employee_{user_id}")],
                 [InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_employee_{user_id}")]
             ])
+            # HTML formatida xabar tayyorlaymiz (Markdown muammo berishi mumkin)
+            admin_message_html = (
+                f"🔔 <b>Yangi xodim so'rovi</b>\n\n"
+                f"👤 <b>FIO:</b> {full_name}\n"
+            )
+            if username:
+                admin_message_html += f"📱 <b>Username:</b> @{username}\n"
+            admin_message_html += f"📞 <b>Telefon:</b> {phone_number}\n"
+            admin_message_html += f"🆔 <b>Telegram ID:</b> {user_id}\n\n"
+            admin_message_html += f"Bu foydalanuvchi o'zini kompaniya xodimi deb tanlagan, lekin employees jadvalida topilmadi."
+            
             await bot.send_message(
                 chat_id=ADMIN_TELEGRAM_ID,
-                text=admin_message,
-                parse_mode="Markdown",
+                text=admin_message_html,
+                parse_mode="HTML",
                 reply_markup=approve_keyboard
             )
             await message.answer(texts[lang]['request_sent_to_admin'], reply_markup=ReplyKeyboardRemove())
@@ -398,8 +487,27 @@ async def process_employee_verification(message: Message, state: FSMContext, bot
             await show_main_menu(message, state, user_id, lang)
             return
         except Exception as e:
-            logging.error(f"Admin {ADMIN_TELEGRAM_ID} ga so'rov yuborib bo'lmadi: {e}")
-            await message.answer("Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Iltimos, qayta urinib ko'ring.", reply_markup=ReplyKeyboardRemove())
+            error_msg = str(e)
+            logging.error(f"Admin {ADMIN_TELEGRAM_ID} ga so'rov yuborib bo'lmadi: {error_msg}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            # Aniqroq xabar
+            if "chat not found" in error_msg.lower() or "user not found" in error_msg.lower():
+                await message.answer(
+                    "Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Admin botni start qilgan bo'lishi kerak. "
+                    "Iltimos, admin'ga botni start qilishni so'rang.",
+                    reply_markup=ReplyKeyboardRemove()
+                )
+            elif "blocked" in error_msg.lower():
+                await message.answer(
+                    "Kechirasiz, admin botni bloklagan. Iltimos, admin'ga botni blokdan olib tashlashni so'rang.",
+                    reply_markup=ReplyKeyboardRemove()
+                )
+            else:
+                await message.answer(
+                    f"Kechirasiz, admin'ga so'rov yuborib bo'lmadi. Xatolik: {error_msg[:100]}. "
+                    "Iltimos, qayta urinib ko'ring yoki admin bilan bog'laning.",
+                    reply_markup=ReplyKeyboardRemove()
+                )
             await state.update_data(pending_admin_request=False, user_type='external')
             await show_main_menu(message, state, user_id, lang)
             return
