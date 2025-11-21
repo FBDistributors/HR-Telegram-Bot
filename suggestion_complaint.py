@@ -140,7 +140,7 @@ async def process_complaint_text(message: Message, state: FSMContext, bot: Bot):
         if user_type == 'employee':
             # Xodimlar uchun anonim shikoyat
             hr_notification = f"🔔 **{texts[lang]['hr_anonymous_complaint']}**\n\n"
-            hr_notification += f"⚠️ **Shikoyat matni:**\n\"{complaint_text}\"\n\n"
+            hr_notification += f"⚠️ **{texts[lang]['hr_complaint_text']}**\n\"{complaint_text}\"\n\n"
             hr_notification += f"**{texts[lang]['hr_reply_instruction']}**"
         else:
             # Tashqi shaxslar uchun to'liq ma'lumot
