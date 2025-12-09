@@ -122,10 +122,23 @@ async def process_problem_photo(message: Message, state: FSMContext, bot: Bot):
             hr_notification += f"🎤 <b>Audio yuborilgan</b>\n"
         
         hr_notification += f"\n📸 <b>Rasm yuborilgan</b>"
+        hr_notification += f"\n\n{texts[lang]['hr_reply_instruction']}"
+        
+        # Original text ni tayyorlash (reply uchun)
+        original_text = ""
+        if problem_text:
+            original_text = problem_text
+        elif problem_audio:
+            original_text = "Audio yuborilgan"
+        else:
+            original_text = "Rasm yuborilgan"
         
         try:
             # Matn xabarini yuboramiz
             sent_message = await bot.send_message(HR_GROUP_ID, hr_notification, parse_mode="HTML")
+            
+            # HR xabar ID sini va original text ni bazaga saqlash (reply uchun)
+            await db.save_suggestion_message(user_id, sent_message.message_id, lang, original_text)
             
             # Audio yuborish (agar bo'lsa)
             if problem_audio:
@@ -154,4 +167,55 @@ async def process_problem_photo(message: Message, state: FSMContext, bot: Bot):
     await state.set_state(MainForm.main_menu)
 
 
+# --- HR GURUHIDA REPLY QILISH FUNKSIYASI ---
+
+@router.message(F.reply_to_message)
+async def handle_hr_group_reply(message: Message, bot: Bot):
+    """HR guruhida bot xabariga reply qilinganda ishga tushadi (AppSheet muammolari uchun)"""
+    
+    # HR_GROUP_ID sozlangan bo'lishi kerak
+    if not HR_GROUP_ID:
+        return
+    
+    # Faqat HR guruhidan kelgan xabarlarni qabul qilamiz
+    if str(message.chat.id) != str(HR_GROUP_ID):
+        return
+    
+    # Faqat text xabarlarni qabul qilamiz
+    if not message.text:
+        return
+    
+    # Reply qilingan xabar botdan bo'lishi kerak
+    if not message.reply_to_message.from_user.is_bot:
+        return
+    
+    try:
+        # Reply qilingan xabar ID sini olamiz
+        replied_message_id = message.reply_to_message.message_id
+        
+        # Bazadan asl foydalanuvchi ma'lumotlarini topamiz
+        suggestion = await db.get_suggestion_by_hr_message(replied_message_id)
+        
+        if not suggestion:
+            return  # Agar topilmasa, hech narsa qilmaymiz
+        
+        # Asl foydalanuvchi ma'lumotlarini olamiz
+        user_id = suggestion.user_id
+        user_lang = suggestion.user_lang
+        
+        # Original xabar matnini olish (uzunligini cheklash)
+        original_text = suggestion.original_text or "Xabar"
+        if len(original_text) > 50:
+            original_text = original_text[:50] + "..."
+        
+        # Javob matnini tayyorlaymiz (original kontekst bilan)
+        reply_header = texts[user_lang]['hr_reply_to_suggestion'].format(original=original_text)
+        reply_text = f"{reply_header}\n\n{texts[user_lang]['hr_reply_prefix']} {message.text}"
+        
+        # Foydalanuvchiga javob yuboramiz
+        await bot.send_message(chat_id=user_id, text=reply_text)
+        logging.info(f"HR javobi foydalanuvchiga yuborildi (AppSheet muammosi). User ID: {user_id}, Reply: {message.text[:50]}")
+        
+    except Exception as e:
+        logging.error(f"HR guruh javobini ishlashda xatolik (AppSheet muammosi): {e}")
 
