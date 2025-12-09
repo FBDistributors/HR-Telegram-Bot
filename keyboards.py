@@ -27,6 +27,7 @@ texts = {
         'products_button': "🛍️ Mahsulotlar",
         'suggestion_button': "💬 Taklif va shikoyatlar",
         'support_center_button': "🆘 Qo'llab quvvatlash markazi",
+        'appsheet_issues_button': "📱 AppSheet muammolari",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 E'lon yuborish",
         'ask_name': "To'liq ism-sharifingizni kiriting (masalan, Olimov Salim).",
@@ -102,6 +103,13 @@ texts = {
         'hr_new_complaint': "Yangi shikoyat!",
         'hr_anonymous_complaint': "Yangi anonim shikoyat!",
         'hr_complaint_text': "Shikoyat matni:",
+        
+        # --- APPSHEET MUAMMOLARI BO'LIMI ---
+        'appsheet_ask_name_department': "Iltimos, quyidagi ma'lumotlarni kiriting:\n\n1. To'liq ism va familyangiz\n2. Qayerda ishlaysiz (bo'lim, filial va hokazo)",
+        'appsheet_ask_problem': "Muammo nima haqida? Iltimos, matn yoki audio orqali tushuntirib bering (kamida bittasi kerak):",
+        'appsheet_ask_photo': "Muammo haqida rasm yoki screenshot yuboring (majburiy):",
+        'appsheet_thanks': "Muammo haqidagi ma'lumotlar qabul qilindi. Rahmat!",
+        'hr_new_appsheet_issue': "Yangi AppSheet muammosi!",
         'hr_reply_prefix': "HR jamoasidan javob:",
         'hr_reply_instruction': "👆 Javob berish uchun shu xabarni reply qiling",
         'hr_reply_to_suggestion': "Sizning \"{original}\" xabaringizga javob:",
@@ -212,6 +220,7 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'products_button': "🛍️ Товары",
         'suggestion_button': "💬 Предложения и жалобы",
         'support_center_button': "🆘 Центр поддержки",
+        'appsheet_issues_button': "📱 Проблемы AppSheet",
         'start_button': "🏠 Start",
         'broadcast_button': "📢 Отправить объявление",
         'ask_name': "Введите Ваши полные имя и фамилию (например, Салимов Олим).",
@@ -283,6 +292,13 @@ Tahlil quyidagi formatda bo'lsin, sarlavhalar va ro'yxatlar uchun emoji'lardan f
         'hr_new_complaint': "Новая жалоба!",
         'hr_anonymous_complaint': "Новая анонимная жалоба!",
         'hr_complaint_text': "Текст жалобы:",
+        
+        # --- РАЗДЕЛ ПРОБЛЕМ APPSHEET ---
+        'appsheet_ask_name_department': "Пожалуйста, введите следующую информацию:\n\n1. Ваше полное имя и фамилия\n2. Где вы работаете (отдел, филиал и т.д.)",
+        'appsheet_ask_problem': "О чем проблема? Пожалуйста, объясните текстом или аудио (нужен хотя бы один):",
+        'appsheet_ask_photo': "Отправьте скриншот или фото проблемы (обязательно):",
+        'appsheet_thanks': "Информация о проблеме получена. Спасибо!",
+        'hr_new_appsheet_issue': "Новая проблема AppSheet!",
         'hr_reply_prefix': "Ответ от HR команды:",
         'hr_reply_instruction': "👆 Для ответа сделайте reply на это сообщение",
         'hr_reply_to_suggestion': "Ответ на ваше сообщение \"{original}\":",
@@ -398,7 +414,8 @@ def get_employee_keyboard(lang: str = 'uz'):
         keyboard=[
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
             [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['products_button'])],
-            [KeyboardButton(text=texts[lang]['suggestion_button'])]
+            [KeyboardButton(text=texts[lang]['suggestion_button'])],
+            [KeyboardButton(text=texts[lang]['appsheet_issues_button'])]
         ],
         resize_keyboard=True
     )

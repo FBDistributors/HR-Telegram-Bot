@@ -75,3 +75,9 @@ class AddDocumentForm(StatesGroup):
     waiting_info_doc_type = State()  # Hisobot, Ariza...
     waiting_info_expiry = State()
     waiting_info_file = State()
+
+# AppSheet muammolari uchun holatlar
+class AppSheetForm(StatesGroup):
+    name_department = State()  # Ism, familya va ish joyi
+    problem_description = State()  # Muammo izohi (matn yoki audio)
+    problem_photo = State()  # Muammo rasmi (majburiy)

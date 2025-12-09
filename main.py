@@ -23,6 +23,7 @@ from admin_panel import router as admin_router
 from suggestion_complaint import router as suggestion_router
 from documents import router as documents_router
 from product_catalog import router as product_router
+from appsheet_issues import router as appsheet_router
 import database as db
 from keyboards import texts, get_user_keyboard, get_admin_main_keyboard, get_external_user_keyboard, get_employee_keyboard
 from states import MainForm, FaqForm, AppForm, AdminForm, DocumentForm
@@ -626,6 +627,7 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(application_router)
     dp.include_router(faq_router)
+    dp.include_router(appsheet_router)
     asyncio.create_task(check_unanswered_questions(bot))
     asyncio.create_task(cleanup_expired_documents())
     await dp.start_polling(bot)
