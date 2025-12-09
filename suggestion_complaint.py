@@ -91,21 +91,21 @@ async def process_suggestion_text(message: Message, state: FSMContext, bot: Bot)
             username = message.from_user.username
             
             # Telefon raqamni bazadan olish
-            phone_number = "Kiritilmagan"
-            try:
-                from sqlalchemy import select
-                from database import User, async_session_maker
-                
-                async with async_session_maker() as session:
-                    result = await session.execute(select(User).filter(User.user_id == user_id))
-                    user = result.scalars().first()
-                    if user and user.phone_number:
-                        phone_number = user.phone_number
-            except Exception as e:
-                logging.error(f"Telefon raqamni olishda xatolik: {e}")
-            
+    phone_number = "Kiritilmagan"
+    try:
+        from sqlalchemy import select
+        from database import User, async_session_maker
+        
+        async with async_session_maker() as session:
+            result = await session.execute(select(User).filter(User.user_id == user_id))
+            user = result.scalars().first()
+            if user and user.phone_number:
+                phone_number = user.phone_number
+    except Exception as e:
+        logging.error(f"Telefon raqamni olishda xatolik: {e}")
+    
             hr_notification += f"👤 **FIO:** {full_name}\n"
-            if username:
+        if username:
                 hr_notification += f"📱 **Username:** @{username}\n"
             hr_notification += f"📞 **Telefon:** {phone_number}\n"
         
@@ -145,9 +145,9 @@ async def process_complaint_text(message: Message, state: FSMContext, bot: Bot):
         else:
             # Tashqi shaxslar uchun to'liq ma'lumot
             hr_notification = f"🔔 **{texts[lang]['hr_new_complaint']}**\n\n"
-            
-            full_name = message.from_user.full_name
-            username = message.from_user.username
+
+    full_name = message.from_user.full_name
+    username = message.from_user.username
             
             # Telefon raqamni bazadan olish
             phone_number = "Kiritilmagan"
@@ -164,7 +164,7 @@ async def process_complaint_text(message: Message, state: FSMContext, bot: Bot):
                 logging.error(f"Telefon raqamni olishda xatolik: {e}")
             
             hr_notification += f"👤 **FIO:** {full_name}\n"
-            if username:
+        if username:
                 hr_notification += f"📱 **Username:** @{username}\n"
             hr_notification += f"📞 **Telefon:** {phone_number}\n"
             hr_notification += f"\n⚠️ **Shikoyat matni:**\n\"{complaint_text}\"\n\n"
@@ -176,7 +176,7 @@ async def process_complaint_text(message: Message, state: FSMContext, bot: Bot):
             await db.save_suggestion_message(user_id, sent_message.message_id, lang, complaint_text)
         except Exception as e:
             logging.error(f"HR guruhiga shikoyat yuborishda xatolik: {e}")
-    
+
     # Foydalanuvchiga tasdiq xabari
     await message.answer(texts[lang]['suggestion_thanks'])
     
@@ -188,7 +188,7 @@ async def show_main_menu_back(message: Message, state: FSMContext, user_id: int,
     """Foydalanuvchi turiga qarab asosiy menyuga qaytish"""
     user_data = await state.get_data()
     user_type = user_data.get('user_type', 'external')
-    
+
     if await db.is_admin(user_id):
         keyboard = get_admin_main_keyboard(lang)
     elif user_type == 'employee':

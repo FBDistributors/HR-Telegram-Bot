@@ -440,6 +440,7 @@ def get_admin_main_keyboard(lang: str = 'uz'):
             [KeyboardButton(text=texts[lang]['apply_button']), KeyboardButton(text=texts[lang]['faq_button'])],
             [KeyboardButton(text=texts[lang]['documents_button']), KeyboardButton(text=texts[lang]['products_button'])],
             [KeyboardButton(text=texts[lang]['suggestion_button'])],
+            [KeyboardButton(text=texts[lang]['appsheet_issues_button'])],
             # Admin tugmalari
             [KeyboardButton(text=texts[lang]['kb_update_button']), KeyboardButton(text=texts[lang]['broadcast_button'])],
             [KeyboardButton(text=texts[lang]['add_document_button'])],
